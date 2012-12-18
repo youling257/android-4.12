@@ -39,9 +39,12 @@
     #define CPUFREQ_INF(format,args...)   do{}while(0)
 #endif
 
-
-#define SUN4I_CPUFREQ_MAX       (1008000000)    /* config the maximum frequency of sun4i core */
-#define SUN4I_CPUFREQ_MIN       (60000000)      /* config the minimum frequency of sun4i core */
+/* Absolute minimum and maximum */
+#define SUN4I_CPUFREQ_MAX       (1488000000)    /* max freq of sun4i cpucore */
+#define SUN4I_CPUFREQ_MIN       (60000000)      /* min freq of sun4i cpucore */
+/* Defaults limits for the scaling governor */
+#define SUN4I_SCALING_MIN	(408000000)	/* Max speed at 1.0 volt */
+#define SUN4I_SCALING_MAX	(1008000000)	/* Max non overclocked speed */
 #define SUN4I_FREQTRANS_LATENCY (2000000)       /* config the transition latency, based on ns */
 
 struct sun4i_clk_div_t {
