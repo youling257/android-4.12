@@ -38,6 +38,7 @@ HDMI_AUDIO_INFO audio_info;
 __u8 EDID_Buf[1024];
 __u8 Device_Support_VIC[HDMI_DEVICE_SUPPORT_VIC_SIZE];
 static __s32 HPD;
+static int audio_devs_registered;
 
 __u32 hdmi_pll = AW_SYS_CLK_PLL3;
 __u32 hdmi_clk = 297000000;
@@ -64,6 +65,13 @@ struct __disp_video_timing video_timing[] = {
 };
 
 const int video_timing_edid = ARRAY_SIZE(video_timing) - 1;
+
+static struct platform_device audio_devs[] = {
+	{ .name = "sun4i-sndhdmi" },
+	{ .name = "sun4i-hdmiaudio" },
+	{ .name = "sun4i-hdmiaudio-codec" },
+	{ .name = "sun4i-hdmiaudio-pcm-audio" },
+};
 
 void hdmi_delay_ms(__u32 t)
 {
@@ -113,6 +121,8 @@ main_Hpd_Check(void)
 
 __s32 hdmi_main_task_loop(void)
 {
+	int rc, i;
+
 	HPD = main_Hpd_Check();
 	if (!HPD && hdmi_state > HDMI_State_Wait_Hpd) {
 		__inf("plugout\n");
@@ -149,6 +159,15 @@ __s32 hdmi_main_task_loop(void)
 				audio_enable = 1;
 			else
 				audio_enable = 0;
+		}
+		if (audio_enable && !audio_devs_registered) {
+			for (i = 0; i < ARRAY_SIZE(audio_devs); i++) {
+				rc = platform_device_register(audio_devs + i);
+				if (rc < 0)
+					pr_warn("Failed to register %s (%d)\n",
+						audio_devs[i].name, rc);
+			}
+			audio_devs_registered = 1;
 		}
 		hdmi_state = HDMI_State_Wait_Video_config;
 
