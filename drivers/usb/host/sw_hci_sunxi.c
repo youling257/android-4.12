@@ -74,6 +74,7 @@ static u32 usbc_base[3] = {
 static u32 usb1_set_vbus_cnt;
 static u32 usb2_set_vbus_cnt;
 
+
 static void dbg_clocks(struct sw_hci_hcd *sw_hci)
 {
 	DMSG_DEBUG("[%s]: clock info, SW_VA_CCM_AHBMOD_OFFSET(0x%x), SW_VA_CCM_USBCLK_OFFSET(0x%x)\n",
@@ -114,6 +115,98 @@ static s32 get_usb_cfg(struct sw_hci_hcd *sw_hci)
 	}
 
 	return 0;
+}
+
+static __u32 USBC_Phy_GetCsr(__u32 usbc_no)
+{
+	__u32 val = 0x0;
+
+	/*
+	 * XXX: TODO: Check if this really is correct, function is returning
+	 * same 'val' for usbc_no == 0,1,2 !??!?!?!
+	 *
+	 * Maybe this should use SW_VA_USB1_IO_BASE for usbc_no==1 and
+	 * SW_VA_USB2_IO_BASE for usbc_no==2?
+	 */
+
+	switch (usbc_no) {
+	case 0:
+		val = SW_VA_USB0_IO_BASE + 0x404;
+		break;
+
+	case 1:
+		val = SW_VA_USB0_IO_BASE + 0x404;
+		break;
+
+	case 2:
+		val = SW_VA_USB0_IO_BASE + 0x404;
+		break;
+
+	default:
+		break;
+	}
+
+	return val;
+}
+
+static __u32 USBC_Phy_Write(__u32 usbc_no, __u32 addr, __u32 data, __u32 len)
+{
+	__u32 temp = 0, dtmp = 0;
+	__u32 j = 0;
+	__u32 usbc_bit = 0;
+	__u32 dest = USBC_Phy_GetCsr(usbc_no);
+
+	dtmp = data;
+	usbc_bit = BIT(usbc_no * 2);
+	for (j = 0; j < len; j++) {
+		/* set the bit address to be written */
+		temp = readl(dest);
+		temp &= ~(0xff << 8);
+		temp |= ((addr + j) << 8);
+		writel(temp, dest);
+
+		/* clear usbc bit and set data bit */
+		temp = readb(dest);
+		temp &= ~usbc_bit;
+		if (dtmp & 0x1)
+			temp |= BIT(7);
+		else
+			temp &= ~BIT(7);
+		writeb(temp, dest);
+
+		/* set usbc bit */
+		temp = readb(dest);
+		temp |= usbc_bit;
+		writeb(temp, dest);
+
+		/* clear usbc bit */
+		temp = readb(dest);
+		temp &= ~usbc_bit;
+		writeb(temp, dest);
+
+		dtmp >>= 1;
+	}
+
+	return data;
+}
+
+static void UsbPhyInit(__u32 usbc_no)
+{
+	/* 调整 USB0 PHY 的幅度和速率 */
+	USBC_Phy_Write(usbc_no, 0x20, 0x14, 5);
+
+	/* DMSG_DEBUG("csr2-1: usbc%d: 0x%x\n", usbc_no, (u32)USBC_Phy_Read(usbc_no, 0x20, 5)); */
+
+	/* 调节 disconnect 域值 */
+	if (sunxi_is_sun5i())
+		USBC_Phy_Write(usbc_no, 0x2a, 2, 2);
+	else
+		USBC_Phy_Write(usbc_no, 0x2a, 3, 2);
+
+	/* DMSG_DEBUG("csr2: usbc%d: 0x%x\n", usbc_no, (u32)USBC_Phy_Read(usbc_no, 0x2a, 2)); */
+	DMSG_DEBUG("csr3: usbc%d: 0x%x\n", usbc_no, (u32)readl(USBC_Phy_GetCsr(usbc_no)));
+
+	return;
 }
 
 static s32 clock_init(struct sw_hci_hcd *sw_hci, u32 ohci)
@@ -227,6 +320,10 @@ static int open_clock(struct sw_hci_hcd *sw_hci, u32 ohci)
 		mdelay(10);
 
 		clk_enable(sw_hci->sie_clk);
+
+		mdelay(10);
+
+		UsbPhyInit(sw_hci->usbc_no);
 	} else {
 		DMSG_PANIC
 		    ("[%s]: wrn: open clock failed, (0x%p, 0x%p, 0x%p, %d, 0x%p)\n",
