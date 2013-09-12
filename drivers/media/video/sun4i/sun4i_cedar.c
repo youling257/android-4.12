@@ -70,7 +70,7 @@ module_param(g_dev_major, int, S_IRUGO);//S_IRUGO represent that g_dev_major can
 module_param(g_dev_minor, int, S_IRUGO);
 
 #ifdef CHIP_VERSION_F23
-#define VE_IRQ_NO (53)
+#define VE_IRQ_NO (SW_INT_IRQNO_VE)
 #else
 #define VE_IRQ_NO (48)
 #endif
@@ -645,7 +645,8 @@ long cedardev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	            writel(v, cedar_devp->iomap_addrs.regs_avs + 0x8c);
 	            restore_context();
 	        } else if (SUNXI_VER_A10B == sw_get_ic_ver() ||
-			   SUNXI_VER_A10C == sw_get_ic_ver()) {
+			   SUNXI_VER_A10C == sw_get_ic_ver() ||
+			   SUNXI_VER_A20 == sw_get_ic_ver()) {
 				v = readl(cedar_devp->iomap_addrs.regs_avs + 0x8c);
 	            temp = v & 0xffff0000;
 	            temp =temp + temp*arg_s/100;
@@ -693,7 +694,8 @@ long cedardev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	            writel(v, cedar_devp->iomap_addrs.regs_avs + 0x8c);
 	            restore_context();
 	        } else if (SUNXI_VER_A10B == sw_get_ic_ver() ||
-			   SUNXI_VER_A10C == sw_get_ic_ver()) {
+			   SUNXI_VER_A10C == sw_get_ic_ver() ||
+			   SUNXI_VER_A20 == sw_get_ic_ver()) {
 	            v = readl(cedar_devp->iomap_addrs.regs_avs + 0x8c);
 	            v = (v_dst<<16)  | (v&0x0000ffff);
 	            writel(v, cedar_devp->iomap_addrs.regs_avs + 0x8c);
@@ -720,7 +722,9 @@ long cedardev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				/* Set AVS_CNT1 init value as zero  */
 	            writel(0, cedar_devp->iomap_addrs.regs_avs + 0x88);
 				restore_context();
-		} else if (SUNXI_VER_A10B == sw_get_ic_ver() || SUNXI_VER_A10C == sw_get_ic_ver()) {
+		} else if (SUNXI_VER_A10B == sw_get_ic_ver() ||
+		   SUNXI_VER_A10C == sw_get_ic_ver() ||
+		   SUNXI_VER_A20 == sw_get_ic_ver()) {
 				/* Set AVS counter divisor */
 	            v = readl(cedar_devp->iomap_addrs.regs_avs + 0x8c);
 	            v = 239 << 16 | (v & 0xffff);
@@ -746,7 +750,8 @@ long cedardev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	            writel(0, cedar_devp->iomap_addrs.regs_avs + 0x88);
 	            restore_context();
 		} else if (SUNXI_VER_A10B == sw_get_ic_ver() ||
-			   SUNXI_VER_A10C == sw_get_ic_ver()) {
+		   SUNXI_VER_A10C == sw_get_ic_ver() ||
+		   SUNXI_VER_A20 == sw_get_ic_ver()) {
         		writel(0, cedar_devp->iomap_addrs.regs_avs + 0x88);
         	}else{
         		printk("IOCTL_RESET_AVS2 error:%s,%d\n", __func__, __LINE__);
@@ -763,7 +768,8 @@ long cedardev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	            writel(v, cedar_devp->iomap_addrs.regs_avs + 0x80);
 	            restore_context();
 		} else if (SUNXI_VER_A10B == sw_get_ic_ver() ||
-			   SUNXI_VER_A10C == sw_get_ic_ver()) {
+		   SUNXI_VER_A10C == sw_get_ic_ver() ||
+		   SUNXI_VER_A20 == sw_get_ic_ver()) {
 	            v = readl(cedar_devp->iomap_addrs.regs_avs + 0x80);
 	            v |= 1 << 9;
 	            writel(v, cedar_devp->iomap_addrs.regs_avs + 0x80);
@@ -782,7 +788,8 @@ long cedardev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	            writel(v, cedar_devp->iomap_addrs.regs_avs + 0x80);
 	            restore_context();
 		} else if (SUNXI_VER_A10B == sw_get_ic_ver() ||
-			   SUNXI_VER_A10C == sw_get_ic_ver()) {
+		   SUNXI_VER_A10C == sw_get_ic_ver() ||
+		   SUNXI_VER_A20 == sw_get_ic_ver()) {
 	            v = readl(cedar_devp->iomap_addrs.regs_avs + 0x80);
 	            v &= ~(1 << 9);
 	            writel(v, cedar_devp->iomap_addrs.regs_avs + 0x80);
@@ -807,7 +814,8 @@ long cedardev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (SUNXI_VER_A10A == sw_get_ic_ver()) {
         		return 0x0A10000A;
 		} else if (SUNXI_VER_A10B == sw_get_ic_ver() ||
-			   SUNXI_VER_A10C == sw_get_ic_ver()) {
+		   SUNXI_VER_A10C == sw_get_ic_ver() ||
+		   SUNXI_VER_A20 == sw_get_ic_ver()) {
         		return 0x0A10000B;
         	}else{
         		printk("IC_VER get error:%s,%d\n", __func__, __LINE__);
@@ -894,8 +902,10 @@ static int cedardev_mmap(struct file *filp, struct vm_area_struct *vma)
         /* Set reserved and I/O flag for the area. */
         vma->vm_flags |= VM_RESERVED | VM_IO;
 
-        /* Select uncached access. */
-        //vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+        if (SUNXI_VER_A20 == sw_get_ic_ver()) {
+            /* Select uncached access. */
+            vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+        }
 
         if (remap_pfn_range(vma, vma->vm_start, temp_pfn,
                             vma->vm_end - vma->vm_start, vma->vm_page_prot)) {
