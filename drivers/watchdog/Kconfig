@@ -351,7 +351,7 @@ config IMX2_WDT
 
 config SUNXI_WDT
 	tristate "Allwinner A10/A13 Watchdog"
-	depends on ARCH_SUN4I || ARCH_SUN5I
+	depends on ARCH_SUN4I || ARCH_SUN5I || ARCH_SUN7I
 	help
 	  This is the driver for the hardware watchdog on the Allwinner
 	  A10/A13 processors.
