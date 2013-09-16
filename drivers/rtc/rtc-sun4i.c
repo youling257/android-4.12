@@ -32,6 +32,9 @@
 #include <asm/irq.h>
 #include <asm/delay.h>
 
+#include <linux/i2c.h>
+#include <plat/sys_config.h>
+
 #define SUNXI_LOSC_CTRL_REG               	(0x100)
 
 #define SUNXI_RTC_DATE_REG                	(0x104)
@@ -100,6 +103,39 @@
 #define ALARM_SET_DAY_VALUE(x)      		(((x)&0x000000ff) << 24)
 
 #define PWM_CTRL_REG_BASE         			(0xf1c20c00+0x200)
+
+
+
+static int i2c_write_reg(struct i2c_adapter *adapter, u8 adr,
+                        u8 reg, u8 data)
+{
+       u8 m[2] = {reg, data};
+       struct i2c_msg msg = {.addr = adr, .flags = 0, .buf = m, .len = 2};
+
+       if (i2c_transfer(adapter, &msg, 1) != 1) {
+               printk(KERN_ERR "Failed to write to I2C register %02x@%02x!\n",
+                      reg, adr);
+               return -1;
+       }
+       return 0;
+}
+
+static int i2c_read_reg(struct i2c_adapter *adapter, u8 adr,
+                       u8 reg, u8 *val)
+{
+       struct i2c_msg msgs[2] = {{.addr = adr, .flags = 0,
+                                  .buf = &reg, .len = 1},
+                                 {.addr = adr, .flags = I2C_M_RD,
+                                  .buf = val, .len = 1} };
+
+       if (i2c_transfer(adapter, msgs, 2) != 2) {
+               printk(KERN_ERR "error in i2c_read_reg\n");
+               return -1;
+       }
+       return 0;
+}
+
+static int pmu_backupen = 0;
 
 //#define RTC_ALARM_DEBUG
 /*
@@ -660,8 +696,44 @@ static struct platform_driver sunxi_rtc_driver = {
 	},
 };
 
+
+static void sunxi_rtc_backupen(void)
+{
+	struct i2c_adapter *adap = NULL;
+	u8 addr = 0x34;
+	u8 val = 0;
+	u8 data = (1<<7)|(1<<5)|2;
+
+	if (SCRIPT_PARSER_OK != script_parser_fetch("pmu_para", "pmu_backupen", &pmu_backupen, 1)) {
+		pr_warning("rtc: parse pmu_backupen failed\n");
+		return;
+	}
+
+	if (pmu_backupen != 1) {
+		pr_warning("rtc: pmu_backupen is disable\n");
+		return;
+	}
+
+	adap = i2c_get_adapter(0);
+	if (adap == NULL) {
+		pr_warning("rtc: get i2c master0 failed\n");
+		return;
+	}
+
+	i2c_read_reg(adap, addr, 0x35, &val);
+	pr_debug("var: %x\n", val);
+	pr_info("rtc: enable pmu backup\n");
+	i2c_write_reg(adap, addr, 0x35, data);
+	i2c_read_reg(adap, addr, 0x35, &val);
+	pr_debug("var: %x\n", val);
+		
+	pr_debug("release i2c adapter0\n");
+	i2c_put_adapter(adap);
+}
+
 static int __init sunxi_rtc_init(void)
 {
+	sunxi_rtc_backupen();
 	platform_device_register(&sunxi_device_rtc);
 	return platform_driver_register(&sunxi_rtc_driver);
 }
