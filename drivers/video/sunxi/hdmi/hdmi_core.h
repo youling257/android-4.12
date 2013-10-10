@@ -54,6 +54,7 @@ extern void __iomem *hdmi_base;
 #define HDMI_NON_CEA861D_START	256
 #define HDMI1360_768_60		(HDMI_NON_CEA861D_START + 0)
 #define HDMI1280_1024_60	(HDMI_NON_CEA861D_START + 1)
+#define HDMI1366_768_60		(HDMI_NON_CEA861D_START + 2)
 #define HDMI_EDID		(HDMI_DEVICE_SUPPORT_VIC_SIZE - 1) 
 
 #define HDMI_WUINT32(offset, value)	writel(value, HDMI_BASE + offset)

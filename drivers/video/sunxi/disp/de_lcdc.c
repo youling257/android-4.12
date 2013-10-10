@@ -902,6 +902,22 @@ __s32 TCON1_set_vga_mode(__u32 sel, __u8 mode)
 		cfg.hspw = 40; /* HS - 1 = -1 */
 		cfg.io_pol = 0x03000000;
 		break;
+	case DISP_TV_MOD_H1366_V768_60HZ:
+		cfg.b_interlace = 0;
+		cfg.src_x = 1366;
+		cfg.src_y = 768;
+		cfg.scl_x = 1366;
+		cfg.scl_y = 768;
+		cfg.out_x = 1366;
+		cfg.out_y = 768;
+		cfg.ht = 1648;
+		cfg.hbp = 238;
+		cfg.vt = 1620;
+		cfg.vbp = 25;
+		cfg.vspw = 3;
+		cfg.hspw = 64;
+		cfg.io_pol = 0x07000000;
+		break;
 	default:
 		return 0;
 	}
