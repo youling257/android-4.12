@@ -705,12 +705,11 @@ static void sunxi_rtc_backupen(void)
 	u8 data = (1<<7)|(1<<5)|2;
 
 	if (SCRIPT_PARSER_OK != script_parser_fetch("pmu_para", "pmu_backupen", &pmu_backupen, 1)) {
-		pr_warning("rtc: parse pmu_backupen failed\n");
 		return;
 	}
 
 	if (pmu_backupen != 1) {
-		pr_warning("rtc: pmu_backupen is disable\n");
+		pr_info("rtc: pmu_backupen is disable\n");
 		return;
 	}
 
