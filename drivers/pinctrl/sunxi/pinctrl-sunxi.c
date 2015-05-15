@@ -888,7 +888,6 @@ int sunxi_pinctrl_init(struct platform_device *pdev,
 	struct sunxi_pinctrl *pctl;
 	struct resource *res;
 	int i, ret, last_pin;
-	struct clk *clk;
 
 	pctl = devm_kzalloc(&pdev->dev, sizeof(*pctl), GFP_KERNEL);
 	if (!pctl)
@@ -986,13 +985,13 @@ int sunxi_pinctrl_init(struct platform_device *pdev,
 			goto gpiochip_error;
 	}
 
-	clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(clk)) {
-		ret = PTR_ERR(clk);
+	pctl->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(pctl->clk)) {
+		ret = PTR_ERR(pctl->clk);
 		goto gpiochip_error;
 	}
 
-	ret = clk_prepare_enable(clk);
+	ret = clk_prepare_enable(pctl->clk);
 	if (ret)
 		goto gpiochip_error;
 
@@ -1047,10 +1046,24 @@ int sunxi_pinctrl_init(struct platform_device *pdev,
 	return 0;
 
 clk_error:
-	clk_disable_unprepare(clk);
+	clk_disable_unprepare(pctl->clk);
 gpiochip_error:
 	gpiochip_remove(pctl->chip);
 pinctrl_error:
 	pinctrl_unregister(pctl->pctl_dev);
 	return ret;
 }
+EXPORT_SYMBOL(sunxi_pinctrl_init);
+
+int sunxi_pinctrl_remove(struct platform_device *pdev)
+{
+	struct sunxi_pinctrl *pctl = platform_get_drvdata(pdev);
+
+	gpiochip_remove(pctl->chip);
+	pinctrl_unregister(pctl->pctl_dev);
+
+	clk_disable_unprepare(pctl->clk);
+
+	return 0;
+}
+EXPORT_SYMBOL(sunxi_pinctrl_remove);

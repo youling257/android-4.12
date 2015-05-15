@@ -126,6 +126,7 @@ struct sunxi_pinctrl {
 	unsigned			*irq_array;
 	spinlock_t			lock;
 	struct pinctrl_dev		*pctl_dev;
+	struct clk			*clk;
 };
 
 #define SUNXI_PIN(_pin, ...)					\
@@ -285,5 +286,6 @@ static inline u32 sunxi_irq_status_offset(u16 irq)
 
 int sunxi_pinctrl_init(struct platform_device *pdev,
 		       const struct sunxi_pinctrl_desc *desc);
+int sunxi_pinctrl_remove(struct platform_device *pdev);
 
 #endif /* __PINCTRL_SUNXI_H */
