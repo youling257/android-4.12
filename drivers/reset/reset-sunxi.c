@@ -124,6 +124,7 @@ err_alloc:
  */
 static const struct of_device_id sunxi_early_reset_dt_ids[] __initdata = {
 	{ .compatible = "allwinner,sun6i-a31-ahb1-reset", },
+	{ .compatible = "allwinner,sun8i-h3-bus-reset", },
 	{ /* sentinel */ },
 };
 
