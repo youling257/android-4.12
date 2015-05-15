@@ -25,7 +25,8 @@ static DEFINE_SPINLOCK(gates_lock);
 
 static void __init sunxi_simple_gates_setup(struct device_node *node,
 					    const int protected[],
-					    int nprotected)
+					    int nprotected,
+					    bool parent_per_gate)
 {
 	struct clk_onecell_data *clk_data;
 	const char *clk_parent, *clk_name;
@@ -42,7 +43,8 @@ static void __init sunxi_simple_gates_setup(struct device_node *node,
 	if (IS_ERR(reg))
 		return;
 
-	clk_parent = of_clk_get_parent_name(node, 0);
+	if (!parent_per_gate)
+		clk_parent = of_clk_get_parent_name(node, i);
 
 	clk_data = kmalloc(sizeof(struct clk_onecell_data), GFP_KERNEL);
 	if (!clk_data)
@@ -58,6 +60,8 @@ static void __init sunxi_simple_gates_setup(struct device_node *node,
 	of_property_for_each_u32(node, "clock-indices", prop, p, index) {
 		of_property_read_string_index(node, "clock-output-names",
 					      i, &clk_name);
+		if (parent_per_gate)
+			clk_parent = of_clk_get_parent_name(node, i);
 
 		clk_reg = reg + 4 * (index / 32);
 		clk_bit = index % 32;
@@ -95,7 +99,7 @@ err_unmap:
 
 static void __init sunxi_simple_gates_init(struct device_node *node)
 {
-	sunxi_simple_gates_setup(node, NULL, 0);
+	sunxi_simple_gates_setup(node, NULL, 0, false);
 }
 
 CLK_OF_DECLARE(sun4i_a10_apb0, "allwinner,sun4i-a10-apb0-gates-clk",
@@ -148,7 +152,8 @@ static const int sun4i_a10_ahb_critical_clocks[] __initconst = {
 static void __init sun4i_a10_ahb_init(struct device_node *node)
 {
 	sunxi_simple_gates_setup(node, sun4i_a10_ahb_critical_clocks,
-				 ARRAY_SIZE(sun4i_a10_ahb_critical_clocks));
+				 ARRAY_SIZE(sun4i_a10_ahb_critical_clocks),
+				 false);
 }
 CLK_OF_DECLARE(sun4i_a10_ahb, "allwinner,sun4i-a10-ahb-gates-clk",
 	       sun4i_a10_ahb_init);
