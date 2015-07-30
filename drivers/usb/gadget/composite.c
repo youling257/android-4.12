@@ -209,6 +209,12 @@ int usb_add_function(struct usb_configuration *config,
 	function->config = config;
 	list_add_tail(&function->list, &config->functions);
 
+	if (function->bind_deactivated) {
+		value = usb_function_deactivate(function);
+		if (value)
+			goto done;
+	}
+
 	/* REVISIT *require* function->bind? */
 	if (function->bind) {
 		value = function->bind(config, function);
@@ -279,7 +285,7 @@ int usb_function_deactivate(struct usb_function *function)
 	spin_lock_irqsave(&cdev->lock, flags);
 
 	if (cdev->deactivations == 0)
-		status = usb_gadget_disconnect(cdev->gadget);
+		status = usb_gadget_deactivate(cdev->gadget);
 	if (status == 0)
 		cdev->deactivations++;
 
@@ -311,7 +317,7 @@ int usb_function_activate(struct usb_function *function)
 	else {
 		cdev->deactivations--;
 		if (cdev->deactivations == 0)
-			status = usb_gadget_connect(cdev->gadget);
+			status = usb_gadget_activate(cdev->gadget);
 	}
 
 	spin_unlock_irqrestore(&cdev->lock, flags);
@@ -896,7 +902,7 @@ void usb_remove_config(struct usb_composite_dev *cdev,
 
 /* We support strings in multiple languages ... string descriptor zero
  * says which languages are supported.  The typical case will be that
- * only one language (probably English) is used, with I18N handled on
+ * only one language (probably English) is used, with i18n handled on
  * the host side.
  */
 
@@ -949,7 +955,7 @@ static int get_string(struct usb_composite_dev *cdev,
 	struct usb_function		*f;
 	int				len;
 
-	/* Yes, not only is USB's I18N support probably more than most
+	/* Yes, not only is USB's i18n support probably more than most
 	 * folk will ever care about ... also, it's all supported here.
 	 * (Except for UTF8 support for Unicode's "Astral Planes".)
 	 */
