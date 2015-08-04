@@ -294,6 +294,30 @@ static int sun4i_usb_phy_exit(struct phy *_phy)
 	return 0;
 }
 
+static int sun4i_usb_phy0_get_vbus_det(struct sun4i_usb_phy_data *data)
+{
+	if (data->vbus_det_gpio)
+		return gpiod_get_value_cansleep(data->vbus_det_gpio);
+
+	if (data->vbus_power_supply) {
+		union power_supply_propval val;
+		int r;
+
+		r = power_supply_get_property(data->vbus_power_supply,
+					      POWER_SUPPLY_PROP_PRESENT, &val);
+		if (r == 0)
+			return val.intval;
+	}
+
+	/* Fallback: report vbus as high */
+	return 1;
+}
+
+static bool sun4i_usb_phy0_have_vbus_det(struct sun4i_usb_phy_data *data)
+{
+	return data->vbus_det_gpio || data->vbus_power_supply;
+}
+
 static int sun4i_usb_phy_power_on(struct phy *_phy)
 {
 	struct sun4i_usb_phy *phy = phy_get_drvdata(_phy);
@@ -304,7 +328,8 @@ static int sun4i_usb_phy_power_on(struct phy *_phy)
 		return 0;
 
 	/* For phy0 only turn on Vbus if we don't have an ext. Vbus */
-	if (phy->index == 0 && data->vbus_det)
+	if (phy->index == 0 && sun4i_usb_phy0_have_vbus_det(data) &&
+				data->vbus_det)
 		return 0;
 
 	ret = regulator_enable(phy->vbus);
@@ -356,30 +381,6 @@ static struct phy_ops sun4i_usb_phy_ops = {
 	.power_off	= sun4i_usb_phy_power_off,
 	.owner		= THIS_MODULE,
 };
-
-static int sun4i_usb_phy0_get_vbus_det(struct sun4i_usb_phy_data *data)
-{
-	if (data->vbus_det_gpio)
-		return gpiod_get_value_cansleep(data->vbus_det_gpio);
-
-	if (data->vbus_power_supply) {
-		union power_supply_propval val;
-		int r;
-
-		r = power_supply_get_property(data->vbus_power_supply,
-					      POWER_SUPPLY_PROP_PRESENT, &val);
-		if (r == 0)
-			return val.intval;
-	}
-
-	/* Fallback: report vbus as high */
-	return 1;
-}
-
-static bool sun4i_usb_phy0_have_vbus_det(struct sun4i_usb_phy_data *data)
-{
-	return data->vbus_det_gpio || data->vbus_power_supply;
-}
 
 static void sun4i_usb_phy0_id_vbus_det_scan(struct work_struct *work)
 {
