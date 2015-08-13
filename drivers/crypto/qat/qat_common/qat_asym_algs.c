@@ -58,6 +58,9 @@
 #include "adf_common_drv.h"
 #include "qat_crypto.h"
 
+static DEFINE_MUTEX(algs_lock);
+static unsigned int active_devs;
+
 struct qat_rsa_input_params {
 	union {
 		struct {
@@ -443,7 +446,7 @@ int qat_rsa_get_n(void *context, size_t hdrlen, unsigned char tag,
 	ctx->key_sz = vlen;
 	ret = -EINVAL;
 	/* In FIPS mode only allow key size 2K & 3K */
-	if (fips_enabled && (ctx->key_sz != 256 || ctx->key_sz != 384)) {
+	if (fips_enabled && (ctx->key_sz != 256 && ctx->key_sz != 384)) {
 		pr_err("QAT: RSA: key size not allowed in FIPS mode\n");
 		goto err;
 	}
@@ -510,7 +513,7 @@ int qat_rsa_get_d(void *context, size_t hdrlen, unsigned char tag,
 		goto err;
 
 	/* In FIPS mode only allow key size 2K & 3K */
-	if (fips_enabled && (vlen != 256 || vlen != 384)) {
+	if (fips_enabled && (vlen != 256 && vlen != 384)) {
 		pr_err("QAT: RSA: key size not allowed in FIPS mode\n");
 		goto err;
 	}
@@ -629,11 +632,21 @@ static struct akcipher_alg rsa = {
 
 int qat_asym_algs_register(void)
 {
-	rsa.base.cra_flags = 0;
-	return crypto_register_akcipher(&rsa);
+	int ret = 0;
+
+	mutex_lock(&algs_lock);
+	if (++active_devs == 1) {
+		rsa.base.cra_flags = 0;
+		ret = crypto_register_akcipher(&rsa);
+	}
+	mutex_unlock(&algs_lock);
+	return ret;
 }
 
 void qat_asym_algs_unregister(void)
 {
-	crypto_unregister_akcipher(&rsa);
+	mutex_lock(&algs_lock);
+	if (--active_devs == 0)
+		crypto_unregister_akcipher(&rsa);
+	mutex_unlock(&algs_lock);
 }

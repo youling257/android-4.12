@@ -44,15 +44,14 @@
   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-#ifndef ADF_DH895x_DRV_H_
-#define ADF_DH895x_DRV_H_
+#ifndef ADF_DH895xVF_DRV_H_
+#define ADF_DH895xVF_DRV_H_
 #include <adf_accel_devices.h>
 #include <adf_transport.h>
 
-void adf_init_hw_data_dh895xcc(struct adf_hw_device_data *hw_data);
-void adf_clean_hw_data_dh895xcc(struct adf_hw_device_data *hw_data);
-int adf_isr_resource_alloc(struct adf_accel_dev *accel_dev);
-void adf_isr_resource_free(struct adf_accel_dev *accel_dev);
-void adf_get_arbiter_mapping(struct adf_accel_dev *accel_dev,
-			     uint32_t const **arb_map_config);
+void adf_init_hw_data_dh895xcciov(struct adf_hw_device_data *hw_data);
+void adf_clean_hw_data_dh895xcciov(struct adf_hw_device_data *hw_data);
+int adf_vf_isr_resource_alloc(struct adf_accel_dev *accel_dev);
+void adf_vf_isr_resource_free(struct adf_accel_dev *accel_dev);
+void adf_update_ring_arb_enable(struct adf_etr_ring_data *ring);
 #endif
