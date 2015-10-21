@@ -59,6 +59,24 @@
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
+
+	reg_touchscreen1 {
+		compatible = "regulator-fixed";
+		regulator-name = "touchscreen1";
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+		gpio = <&pio 0 5 GPIO_ACTIVE_HIGH>;
+		regulator-always-on;
+	};
+
+	reg_touchscreen2 {
+		compatible = "regulator-fixed";
+		regulator-name = "touchscreen2";
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+		gpio = <&pio 1 13 GPIO_ACTIVE_HIGH>;
+		regulator-always-on;
+	};
 };
 
 &cpu0 {
@@ -85,14 +103,31 @@
 &i2c1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_pins_a>;
-	/* pull-ups and devices require AXP209 LDO3 */
-	status = "failed";
+	status = "okay";
+
+	/* Accelerometer */
+	bma250@18 {
+		compatible = "bosch,bma250";
+		reg = <0x18>;
+		interrupt-parent = <&pio>;
+		interrupts = <7 0 IRQ_TYPE_EDGE_RISING>; /* PH0 / EINT0 */
+	};
 };
 
 &i2c2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c2_pins_a>;
 	status = "okay";
+
+	pixcir_ts@5c {
+		compatible = "pixcir,pixcir_tangoc";
+		reg = <0x5c>;
+		interrupt-parent = <&pio>;
+		interrupts = <7 21 IRQ_TYPE_EDGE_FALLING>; /* EINT21 (PH21) */
+		attb-gpio = <&pio 7 21 GPIO_ACTIVE_HIGH>; /* PH21 */
+		touchscreen-size-x = <1024>;
+		touchscreen-size-y = <768>;
+	};
 };
 
 &lradc {
@@ -167,6 +202,17 @@
 	regulator-min-microvolt = <3000000>;
 	regulator-max-microvolt = <3000000>;
 	regulator-name = "avcc";
+};
+
+&reg_ldo3 {
+	/*
+	 * We need to always power the camera sensor, otherwhise all access
+	 * to i2c1 is blocked.
+	 */
+	regulator-always-on;
+	regulator-min-microvolt = <2800000>;
+	regulator-max-microvolt = <2800000>;
+	regulator-name = "vdd-csi";
 };
 
 &reg_usb0_vbus {
