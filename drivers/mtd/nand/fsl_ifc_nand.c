@@ -882,7 +882,7 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 
 	/* Fill in fsl_ifc_mtd structure */
 	priv->mtd.priv = chip;
-	priv->mtd.owner = THIS_MODULE;
+	priv->mtd.dev.parent = priv->dev;
 
 	/* fill in nand_chip structure */
 	/* set up function call table */
@@ -1163,6 +1163,7 @@ static const struct of_device_id fsl_ifc_nand_match[] = {
 	},
 	{}
 };
+MODULE_DEVICE_TABLE(of, fsl_ifc_nand_match);
 
 static struct platform_driver fsl_ifc_nand_driver = {
 	.driver = {
