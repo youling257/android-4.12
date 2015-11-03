@@ -75,3 +75,14 @@
 	pinctrl-0 = <&uart0_pins_a>;
 	status = "okay";
 };
+&ehci1 {
+	status = "okay";
+};
+
+&ohci1 {
+	status = "okay";
+};
+
+&usbphy {
+	status = "okay";
+};
