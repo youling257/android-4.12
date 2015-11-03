@@ -381,6 +381,15 @@
 			clock-output-names = "codec";
 		};
 
+		mali400_clk: clk@01c20154 {
+			#clock-cells = <0>;
+			#reset-cells = <0>;
+			compatible = "allwinner,sun4i-a10-display-clk";
+			reg = <0x01c20154 0x4>;
+			clocks = <&pll3>, <&pll4>, <&pll5 1>, <&pll7>;
+			clock-output-names = "mali400";
+		};
+
 		mbus_clk: clk@01c2015c {
 			#clock-cells = <0>;
 			compatible = "allwinner,sun5i-a13-mbus-clk";
