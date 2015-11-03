@@ -46,6 +46,7 @@
 #define REG_PHYBIST			0x08
 #define REG_PHYTUNE			0x0c
 #define REG_PHYCTL_A33			0x10
+#define REG_PHYUNK_H3			0x20
 
 #define PHYCTL_DATA			BIT(7)
 
@@ -94,6 +95,7 @@ struct sun4i_usb_phy_data {
 	int num_phys;
 	u32 disc_thresh;
 	bool has_a33_phyctl;
+	bool has_h3_phyctl;
 	struct sun4i_usb_phy {
 		struct phy *phy;
 		void __iomem *pmu;
@@ -158,7 +160,7 @@ static void sun4i_usb_phy_write(struct sun4i_usb_phy *phy, u32 addr, u32 data,
 				int len)
 {
 	struct sun4i_usb_phy_data *phy_data = to_sun4i_usb_phy_data(phy);
-	u32 temp, usbc_bit = BIT(phy->index * 2);
+	u32 temp, state = 0, usbc_bit = BIT(phy->index * 2);
 	void *phyctl;
 	int i;
 
@@ -168,6 +170,11 @@ static void sun4i_usb_phy_write(struct sun4i_usb_phy *phy, u32 addr, u32 data,
 		phyctl = phy_data->base + REG_PHYCTL_A33;
 		/* A33 needs us to set phyctl to 0 explicitly */
 		writel(0, phyctl);
+	} else if (phy_data->has_h3_phyctl) {
+		phyctl = phy_data->base + REG_PHYCTL_A33;
+		/* H3 needs us to set ?? to 1 */
+		state = readl(phy_data->base + REG_PHYUNK_H3);
+		writel(state | 1, phy_data->base + REG_PHYUNK_H3);
 	} else {
 		phyctl = phy_data->base + REG_PHYCTL_A10;
 	}
@@ -201,6 +208,10 @@ static void sun4i_usb_phy_write(struct sun4i_usb_phy *phy, u32 addr, u32 data,
 		writeb(temp, phyctl);
 
 		data >>= 1;
+	}
+	if (phy_data->has_h3_phyctl) {
+		/* H3 needs us to restore ?? to old value */
+		writel(state, phy_data->base + REG_PHYUNK_H3);
 	}
 	mutex_unlock(&phy_data->mutex);
 }
@@ -527,6 +538,8 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 	    of_device_is_compatible(np, "allwinner,sun8i-a23-usb-phy") ||
 	    of_device_is_compatible(np, "allwinner,sun8i-a33-usb-phy"))
 		data->num_phys = 2;
+	else if (of_device_is_compatible(np, "allwinner,sun8i-h3-usb-phy"))
+		data->num_phys = 3;
 	else
 		data->num_phys = 3;
 
@@ -538,13 +551,16 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 
 	if (of_device_is_compatible(np, "allwinner,sun6i-a31-usb-phy") ||
 	    of_device_is_compatible(np, "allwinner,sun8i-a23-usb-phy") ||
-	    of_device_is_compatible(np, "allwinner,sun8i-a33-usb-phy"))
+	    of_device_is_compatible(np, "allwinner,sun8i-a33-usb-phy") ||
+	    of_device_is_compatible(np, "allwinner,sun8i-h3-usb-phy"))
 		dedicated_clocks = true;
 	else
 		dedicated_clocks = false;
 
 	if (of_device_is_compatible(np, "allwinner,sun8i-a33-usb-phy"))
 		data->has_a33_phyctl = true;
+	if (of_device_is_compatible(np, "allwinner,sun8i-h3-usb-phy"))
+		data->has_h3_phyctl = true;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phy_ctrl");
 	data->base = devm_ioremap_resource(dev, res);
@@ -696,6 +712,7 @@ static const struct of_device_id sun4i_usb_phy_of_match[] = {
 	{ .compatible = "allwinner,sun7i-a20-usb-phy" },
 	{ .compatible = "allwinner,sun8i-a23-usb-phy" },
 	{ .compatible = "allwinner,sun8i-a33-usb-phy" },
+	{ .compatible = "allwinner,sun8i-h3-usb-phy" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, sun4i_usb_phy_of_match);
