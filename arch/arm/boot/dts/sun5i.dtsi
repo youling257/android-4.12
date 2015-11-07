@@ -381,13 +381,13 @@
 			clock-output-names = "codec";
 		};
 
-		mali400_clk: clk@01c20154 {
+		gpu_clk: clk@01c20154 {
 			#clock-cells = <0>;
 			#reset-cells = <0>;
 			compatible = "allwinner,sun4i-a10-display-clk";
 			reg = <0x01c20154 0x4>;
 			clocks = <&pll3>, <&pll4>, <&pll5 1>, <&pll7>;
-			clock-output-names = "mali400";
+			clock-output-names = "gpu";
 		};
 
 		mbus_clk: clk@01c2015c {
@@ -749,6 +749,15 @@
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
+		};
+
+		gpu: gpu@1c40000 {
+			compatible = "arm,mali400";
+			reg = <0x01c40000 0x10000>;
+			clocks = <&ahb_gates 52>, <&gpu_clk>;
+			clock-names = "ahb", "mali400";
+			resets = <&gpu_clk>;
+/*			status = "disabled"; */
 		};
 
 		timer@01c60000 {

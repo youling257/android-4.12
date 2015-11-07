@@ -28,7 +28,7 @@ static DEFINE_SPINLOCK(sun4i_a10_pll3_lock);
 static void __init sun4i_a10_pll3_setup(struct device_node *node)
 {
 	const char *clk_name = node->name, *parent;
-	struct clk_factor *mult;
+	struct clk_multiplier *mult;
 	struct clk_gate *gate;
 	void __iomem *reg;
 	struct clk *clk;
@@ -62,7 +62,7 @@ static void __init sun4i_a10_pll3_setup(struct device_node *node)
 	clk = clk_register_composite(NULL, clk_name,
 				     &parent, 1,
 				     NULL, NULL,
-				     &mult->hw, &clk_factor_ops,
+				     &mult->hw, &clk_multiplier_ops,
 				     &gate->hw, &clk_gate_ops,
 				     0);
 	if (IS_ERR(clk)) {

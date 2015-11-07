@@ -1,0 +1,4 @@
+config DRM_MALI400
+	tristate "DRM Support for Mali400"
+	help
+	  enable Mali400 DRI driver
