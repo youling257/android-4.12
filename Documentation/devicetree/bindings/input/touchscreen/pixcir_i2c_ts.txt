@@ -10,6 +10,8 @@ Required properties:
 
 Optional properties:
 - reset-gpio: GPIO connected to the RESET line of the chip
+- enable-gpios: GPIO connected to the ENABLE line of the chip
+- wake-gpios: GPIO connected to the WAKE line of the chip
 
 Example:
 
