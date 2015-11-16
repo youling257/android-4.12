@@ -55,12 +55,16 @@ static void touchscreen_set_params(struct input_dev *dev,
  * @input: input device that should be parsed
  * @multitouch: specifies whether parsed properties should be applied to
  *	single-touch or multi-touch axes
+ * @prop: pointer to a struct touchscreen_properties into which to store
+ *	axis swap and invert info for use with touchscreen_report_x_y();
+ *	or NULL
  *
  * This function parses common DT properties for touchscreens and setups the
  * input device accordingly. The function keeps previously set up default
  * values if no value is specified via DT.
  */
-void touchscreen_parse_properties(struct input_dev *input, bool multitouch)
+void touchscreen_parse_properties(struct input_dev *input, bool multitouch,
+				  struct touchscreen_properties *prop)
 {
 	struct device *dev = input->dev.parent;
 	unsigned int axis;
@@ -104,5 +108,74 @@ void touchscreen_parse_properties(struct input_dev *input, bool multitouch)
 						&fuzz);
 	if (data_present)
 		touchscreen_set_params(input, axis, maximum, fuzz);
+
+	if (!prop)
+		return;
+
+	prop->invert_x =
+		device_property_read_bool(dev, "touchscreen-inverted-x");
+	prop->invert_y =
+		device_property_read_bool(dev, "touchscreen-inverted-y");
+	prop->swap_x_y =
+		device_property_read_bool(dev, "touchscreen-swapped-x-y");
+
+	if (prop->swap_x_y) {
+		struct input_absinfo tmp_absinfo;
+
+		axis = multitouch ? ABS_MT_POSITION_X : ABS_X;
+		tmp_absinfo = input->absinfo[axis];
+		input->absinfo[axis] = input->absinfo[axis + 1];
+		input->absinfo[axis + 1] = tmp_absinfo;
+	}
 }
 EXPORT_SYMBOL(touchscreen_parse_properties);
+
+/**
+ * touchscreen_report_x_y - Report abs x and y coordinates
+ * @input: input device that should be parsed
+ * @multitouch: specifies whether parsed properties should be applied to
+ *	single-touch or multi-touch axes
+ * @prop: pointer to a struct touchscreen_properties
+ * @x: X coordinate to report before inversion and swapping
+ * @y: Y coordinate to report before inversion and swapping
+ *
+ * This calls input_report_abs for the (multi-touch) x and y axis reporting
+ * the passed in x and y values applying any axis inversion and swapping
+ * requested in the passed in touchscreen_properties.
+ */
+void touchscreen_report_x_y(struct input_dev *input, bool multitouch,
+			    struct touchscreen_properties *prop,
+			    unsigned int x, unsigned int y)
+{
+	unsigned int axis_x, axis_y;
+
+	if (multitouch) {
+		axis_x = ABS_MT_POSITION_X;
+		axis_y = ABS_MT_POSITION_Y;
+	} else {
+		axis_x = ABS_X;
+		axis_y = ABS_Y;
+	}
+
+	if (!prop->swap_x_y) {
+		if (prop->invert_x)
+			x = input_abs_get_max(input, axis_x) - x;
+
+		if (prop->invert_y)
+			y = input_abs_get_max(input, axis_y) - y;
+
+		input_report_abs(input, axis_x, x);
+		input_report_abs(input, axis_y, y);
+	} else {
+		/* absinfo is swapped, use the other max for inversion */
+		if (prop->invert_x)
+			x = input_abs_get_max(input, axis_y) - x;
+
+		if (prop->invert_y)
+			y = input_abs_get_max(input, axis_x) - y;
+
+		input_report_abs(input, axis_x, y);
+		input_report_abs(input, axis_y, x);
+	}
+}
+EXPORT_SYMBOL(touchscreen_report_x_y);

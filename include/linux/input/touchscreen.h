@@ -11,6 +11,17 @@
 
 struct input_dev;
 
-void touchscreen_parse_properties(struct input_dev *dev, bool multitouch);
+struct touchscreen_properties {
+	bool invert_x;
+	bool invert_y;
+	bool swap_x_y;
+};
+
+void touchscreen_parse_properties(struct input_dev *input, bool multitouch,
+				  struct touchscreen_properties *prop);
+
+void touchscreen_report_x_y(struct input_dev *input, bool multitouch,
+			    struct touchscreen_properties *prop,
+			    unsigned int x, unsigned int y);
 
 #endif
