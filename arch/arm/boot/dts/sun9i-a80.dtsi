@@ -737,6 +737,20 @@
 			#size-cells = <0>;
 			#gpio-cells = <3>;
 
+			gmac_pins_rgmii: gmac_rgmii@0 {
+				allwinner,pins = "PA0", "PA1", "PA2", "PA3",
+						 "PA4", "PA5", "PA7", "PA8",
+						 "PA9", "PA10", "PA12", "PA13",
+						 "PA15", "PA16", "PA17";
+				allwinner,function = "gmac";
+				/*
+				 * data lines in RGMII mode use DDR mode
+				 * and need a higher signal drive strength
+				 */
+				allwinner,drive = <SUN4I_PINCTRL_40_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
 			i2c3_pins_a: i2c3@0 {
 				allwinner,pins = "PG10", "PG11";
 				allwinner,function = "i2c3";
