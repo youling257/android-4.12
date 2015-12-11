@@ -43,8 +43,11 @@ static int sun7i_gmac_init(struct platform_device *pdev, void *priv)
 
 	if (gmac->regulator) {
 		ret = regulator_enable(gmac->regulator);
-		if (ret)
+		if (ret) {
+			dev_err(&pdev->dev,
+				"failed to enable PHY regulator: %d\n", ret);
 			return ret;
+		}
 	}
 
 	/* Set GMAC interface port mode
