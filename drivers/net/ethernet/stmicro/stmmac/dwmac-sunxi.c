@@ -31,6 +31,7 @@ struct sunxi_priv_data {
 	int clk_enabled;
 	struct clk *tx_clk;
 	struct regulator *regulator;
+	struct regulator *regulator_io;
 };
 
 #define SUN7I_GMAC_GMII_RGMII_RATE	125000000
@@ -46,6 +47,18 @@ static int sun7i_gmac_init(struct platform_device *pdev, void *priv)
 		if (ret) {
 			dev_err(&pdev->dev,
 				"failed to enable PHY regulator: %d\n", ret);
+			return ret;
+		}
+	}
+
+	if (gmac->regulator_io) {
+		ret = regulator_enable(gmac->regulator_io);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"failed to enable PHY IO regulator: %d\n",
+				ret);
+			if (gmac->regulator)
+				regulator_disable(gmac->regulator);
 			return ret;
 		}
 	}
@@ -78,6 +91,8 @@ static void sun7i_gmac_exit(struct platform_device *pdev, void *priv)
 	}
 	clk_unprepare(gmac->tx_clk);
 
+	if (gmac->regulator_io)
+		regulator_disable(gmac->regulator_io);
 	if (gmac->regulator)
 		regulator_disable(gmac->regulator);
 }
@@ -139,8 +154,17 @@ static int sun7i_gmac_probe(struct platform_device *pdev)
 	if (IS_ERR(gmac->regulator)) {
 		if (PTR_ERR(gmac->regulator) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		dev_info(dev, "no regulator found\n");
+		dev_info(dev, "no phy regulator found\n");
 		gmac->regulator = NULL;
+	}
+
+	/* Optional regulator for PHY IO */
+	gmac->regulator_io = devm_regulator_get_optional(dev, "phy-io");
+	if (IS_ERR(gmac->regulator_io)) {
+		if (PTR_ERR(gmac->regulator_io) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		dev_info(dev, "no phy ioregulator found\n");
+		gmac->regulator_io = NULL;
 	}
 
 	/* platform data specifying hardware features and callbacks.
