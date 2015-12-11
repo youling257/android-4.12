@@ -12,6 +12,8 @@ Required properties:
 
 Optional properties:
 - phy-supply: phandle to a regulator if the PHY needs one
+- phy-io-supply: phandle to a regulator if the PHY uses one separately
+		 for IO, due to different signaling voltages
 
 Examples:
 
