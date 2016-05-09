@@ -830,3 +830,431 @@ int of_changeset_action(struct of_changeset *ocs, unsigned long action,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(of_changeset_action);
+
+/* changeset helpers */
+
+/**
+ * of_changeset_create_device_node - Create an empty device node
+ *
+ * @ocs:	changeset pointer
+ * @parent:	parent device node
+ * @fmt:	format string for the node's full_name
+ * @args:	argument list for the format string
+ *
+ * Create an empty device node, marking it as detached and allocated.
+ *
+ * Returns a device node on success, an error encoded pointer otherwise
+ */
+struct device_node *of_changeset_create_device_nodev(
+	struct of_changeset *ocs, struct device_node *parent,
+	const char *fmt, va_list vargs)
+{
+	struct device_node *node;
+
+	node = __of_node_dupv(NULL, fmt, vargs);
+	if (!node)
+		return ERR_PTR(-ENOMEM);
+
+	node->parent = parent;
+	return node;
+}
+EXPORT_SYMBOL_GPL(of_changeset_create_device_nodev);
+
+/**
+ * of_changeset_create_device_node - Create an empty device node
+ *
+ * @ocs:	changeset pointer
+ * @parent:	parent device node
+ * @fmt:	Format string for the node's full_name
+ * ...		Arguments
+ *
+ * Create an empty device node, marking it as detached and allocated.
+ *
+ * Returns a device node on success, an error encoded pointer otherwise
+ */
+struct device_node *of_changeset_create_device_node(
+	struct of_changeset *ocs, struct device_node *parent,
+	const char *fmt, ...)
+{
+	va_list vargs;
+	struct device_node *node;
+
+	va_start(vargs, fmt);
+	node = of_changeset_create_device_nodev(ocs, parent, fmt, vargs);
+	va_end(vargs);
+	return node;
+}
+EXPORT_SYMBOL_GPL(of_changeset_create_device_node);
+
+static int __of_changeset_add_update_property_copy(struct of_changeset *ocs,
+		struct device_node *np, const char *name, const void *value,
+		int length, bool update)
+{
+	struct property *prop;
+	int ret = -ENOMEM;
+
+	prop = kzalloc(sizeof(*prop), GFP_KERNEL);
+	if (!prop)
+		return ret;
+
+	prop->name = kstrdup(name, GFP_KERNEL);
+	if (!prop->name)
+		goto out;
+
+	/*
+	 * NOTE: There is no check for zero length value.
+	 * In case of a boolean property, this will allocate a value
+	 * of zero bytes. We do this to work around the use
+	 * of of_get_property() calls on boolean values.
+	 */
+	prop->value = kmemdup(value, length, GFP_KERNEL);
+	if (!prop->value)
+		goto out;
+
+	of_property_set_flag(prop, OF_DYNAMIC);
+	prop->length = length;
+
+	if (!update)
+		ret = of_changeset_add_property(ocs, np, prop);
+	else
+		ret = of_changeset_update_property(ocs, np, prop);
+
+	if (ret == 0)
+		return 0;
+
+out:
+	kfree(prop->value);
+	kfree(prop->name);
+	kfree(prop);
+	return ret;
+}
+
+static int __of_changeset_add_update_property_string(struct of_changeset *ocs,
+		struct device_node *np, const char *name, const char *str,
+		bool update)
+{
+	return __of_changeset_add_update_property_copy(ocs, np, name, str,
+			strlen(str) + 1, update);
+}
+
+static int __of_changeset_add_update_property_stringv(struct of_changeset *ocs,
+		struct device_node *np, const char *name,
+		const char *fmt, va_list vargs, bool update)
+{
+	char *str;
+	int ret;
+
+	str = kvasprintf(GFP_KERNEL, fmt, vargs);
+	if (!str)
+		return -ENOMEM;
+
+	ret = __of_changeset_add_update_property_string(ocs, np, name, str, update);
+
+	kfree(str);
+
+	return ret;
+}
+
+static int __of_changeset_add_update_property_string_list(
+		struct of_changeset *ocs, struct device_node *np, const char *name,
+		const char **strs, int count, bool update)
+{
+	int total = 0, i, ret;
+	char *value, *s;
+
+	for (i = 0; i < count; i++) {
+		/* check if  it's NULL */
+		if (!strs[i])
+			return -EINVAL;
+		total += strlen(strs[i]) + 1;
+	}
+
+	value = kmalloc(total, GFP_KERNEL);
+	if (!value)
+		return -ENOMEM;
+
+	for (i = 0, s = value; i < count; i++) {
+		/* no need to check for NULL, check above */
+		strcpy(s, strs[i]);
+		s += strlen(strs[i]) + 1;
+	}
+
+	ret = __of_changeset_add_update_property_copy(ocs, np, name, value,
+			total, update);
+
+	kfree(value);
+
+	return ret;
+}
+
+/**
+ * of_changeset_add_property_copy - Create a new property copying name & value
+ *
+ * @ocs:	changeset pointer
+ * @np:		device node pointer
+ * @name:	name of the property
+ * @value:	pointer to the value data
+ * @length:	length of the value in bytes
+ *
+ * Adds a property to the changeset by making copies of the name & value
+ * entries.
+ *
+ * Returns zero on success, a negative error value otherwise.
+ */
+int of_changeset_add_property_copy(struct of_changeset *ocs,
+		struct device_node *np, const char *name, const void *value,
+		int length)
+{
+	return __of_changeset_add_update_property_copy(ocs, np, name, value,
+			length, false);
+}
+EXPORT_SYMBOL_GPL(of_changeset_add_property_copy);
+
+/**
+ * of_changeset_add_property_string - Create a new string property
+ *
+ * @ocs:	changeset pointer
+ * @np:		device node pointer
+ * @name:	name of the property
+ * @str:	string property
+ *
+ * Adds a string property to the changeset by making copies of the name
+ * and the string value.
+ *
+ * Returns zero on success, a negative error value otherwise.
+ */
+int of_changeset_add_property_string(struct of_changeset *ocs,
+		struct device_node *np, const char *name, const char *str)
+{
+	return __of_changeset_add_update_property_string(ocs, np, name, str,
+			false);
+}
+EXPORT_SYMBOL_GPL(of_changeset_add_property_string);
+
+/**
+ * of_changeset_add_property_stringf - Create a new formatted string property
+ *
+ * @ocs:	changeset pointer
+ * @np:		device node pointer
+ * @name:	name of the property
+ * @fmt:	format of string property
+ * ...		arguments of the format string
+ *
+ * Adds a string property to the changeset by making copies of the name
+ * and the formatted value.
+ *
+ * Returns zero on success, a negative error value otherwise.
+ */
+int of_changeset_add_property_stringf(struct of_changeset *ocs,
+		struct device_node *np, const char *name, const char *fmt, ...)
+{
+	va_list vargs;
+	int ret;
+
+	va_start(vargs, fmt);
+	ret = __of_changeset_add_update_property_stringv(ocs, np, name, fmt,
+			vargs, false);
+	va_end(vargs);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(of_changeset_add_property_stringf);
+
+/**
+ * of_changeset_add_property_string_list - Create a new string list property
+ *
+ * @ocs:	changeset pointer
+ * @np:		device node pointer
+ * @name:	name of the property
+ * @strs:	pointer to the string list
+ * @count:	string count
+ *
+ * Adds a string list property to the changeset.
+ *
+ * Returns zero on success, a negative error value otherwise.
+ */
+int of_changeset_add_property_string_list(struct of_changeset *ocs,
+		struct device_node *np, const char *name, const char **strs,
+		int count)
+{
+	return __of_changeset_add_update_property_string_list(ocs, np, name,
+			strs, count, false);
+}
+EXPORT_SYMBOL_GPL(of_changeset_add_property_string_list);
+
+/**
+ * of_changeset_add_property_u32 - Create a new u32 property
+ *
+ * @ocs:	changeset pointer
+ * @np:		device node pointer
+ * @name:	name of the property
+ * @val:	value in host endian format
+ *
+ * Adds a u32 property to the changeset.
+ *
+ * Returns zero on success, a negative error value otherwise.
+ */
+int of_changeset_add_property_u32(struct of_changeset *ocs,
+		struct device_node *np, const char *name, u32 val)
+{
+	__be32 _val = cpu_to_be32(val);
+	return __of_changeset_add_update_property_copy(ocs, np, name, &_val,
+			sizeof(_val), false);
+}
+EXPORT_SYMBOL_GPL(of_changeset_add_property_u32);
+
+/**
+ * of_changeset_add_property_bool - Create a new u32 property
+ *
+ * @ocs:	changeset pointer
+ * @np:		device node pointer
+ * @name:	name of the property
+ *
+ * Adds a bool property to the changeset. Note that there is
+ * no option to set the value to false, since the property
+ * existing sets it to true.
+ *
+ * Returns zero on success, a negative error value otherwise.
+ */
+int of_changeset_add_property_bool(struct of_changeset *ocs,
+		struct device_node *np, const char *name)
+{
+	return __of_changeset_add_update_property_copy(ocs, np, name, "", 0,
+			false);
+}
+EXPORT_SYMBOL_GPL(of_changeset_add_property_bool);
+
+/**
+ * of_changeset_update_property_copy - Update a property copying name & value
+ *
+ * @ocs:	changeset pointer
+ * @np:		device node pointer
+ * @name:	name of the property
+ * @value:	pointer to the value data
+ * @length:	length of the value in bytes
+ *
+ * Update a property to the changeset by making copies of the name & value
+ * entries.
+ *
+ * Returns zero on success, a negative error value otherwise.
+ */
+int of_changeset_update_property_copy(struct of_changeset *ocs,
+		struct device_node *np, const char *name, const void *value,
+		int length)
+{
+	return __of_changeset_add_update_property_copy(ocs, np, name, value,
+			length, true);
+}
+EXPORT_SYMBOL_GPL(of_changeset_update_property_copy);
+
+/**
+ * of_changeset_update_property_string - Create a new string property
+ *
+ * @ocs:	changeset pointer
+ * @np:		device node pointer
+ * @name:	name of the property
+ * @str:	string property
+ *
+ * Updates a string property to the changeset by making copies of the name
+ * and the string value.
+ *
+ * Returns zero on success, a negative error value otherwise.
+ */
+int of_changeset_update_property_string(struct of_changeset *ocs,
+		struct device_node *np, const char *name, const char *str)
+{
+	return __of_changeset_add_update_property_string(ocs, np, name, str,
+			true);
+}
+EXPORT_SYMBOL_GPL(of_changeset_update_property_string);
+
+/**
+ * of_changeset_update_property_stringf - Update formatted string property
+ *
+ * @ocs:	changeset pointer
+ * @np:		device node pointer
+ * @name:	name of the property
+ * @fmt:	format of string property
+ * ...		arguments of the format string
+ *
+ * Updates a string property to the changeset by making copies of the name
+ * and the formatted value.
+ *
+ * Returns zero on success, a negative error value otherwise.
+ */
+int of_changeset_update_property_stringf(struct of_changeset *ocs,
+		struct device_node *np, const char *name, const char *fmt, ...)
+{
+	va_list vargs;
+	int ret;
+
+	va_start(vargs, fmt);
+	ret = __of_changeset_add_update_property_stringv(ocs, np, name, fmt,
+			vargs, true);
+	va_end(vargs);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(of_changeset_update_property_stringf);
+
+/**
+ * of_changeset_update_property_string_list - Update string list property
+ *
+ * @ocs:	changeset pointer
+ * @np:		device node pointer
+ * @name:	name of the property
+ * @strs:	pointer to the string list
+ * @count:	string count
+ *
+ * Updates a string list property to the changeset.
+ *
+ * Returns zero on success, a negative error value otherwise.
+ */
+int of_changeset_update_property_string_list(struct of_changeset *ocs,
+		struct device_node *np, const char *name, const char **strs,
+		int count)
+{
+	return __of_changeset_add_update_property_string_list(ocs, np, name,
+			strs, count, true);
+}
+EXPORT_SYMBOL_GPL(of_changeset_update_property_string_list);
+
+/**
+ * of_changeset_update_property_u32 - Update u32 property
+ *
+ * @ocs:	changeset pointer
+ * @np:		device node pointer
+ * @name:	name of the property
+ * @val:	value in host endian format
+ *
+ * Updates a u32 property to the changeset.
+ *
+ * Returns zero on success, a negative error value otherwise.
+ */
+int of_changeset_update_property_u32(struct of_changeset *ocs,
+		struct device_node *np, const char *name, u32 val)
+{
+	__be32 _val = cpu_to_be32(val);
+	return __of_changeset_add_update_property_copy(ocs, np, name, &_val,
+			sizeof(_val), true);
+}
+EXPORT_SYMBOL_GPL(of_changeset_update_property_u32);
+
+/**
+ * of_changeset_update_property_bool - Update a bool property
+ *
+ * @ocs:	changeset pointer
+ * @np:		device node pointer
+ * @name:	name of the property
+ *
+ * Updates a property to the changeset. Note that there is
+ * no option to set the value to false, since the property
+ * existing sets it to true.
+ *
+ * Returns zero on success, a negative error value otherwise.
+ */
+int of_changeset_update_property_bool(struct of_changeset *ocs,
+		struct device_node *np, const char *name)
+{
+	return __of_changeset_add_update_property_copy(ocs, np, name, "", 0,
+			true);
+}
+EXPORT_SYMBOL_GPL(of_changeset_update_property_bool);
