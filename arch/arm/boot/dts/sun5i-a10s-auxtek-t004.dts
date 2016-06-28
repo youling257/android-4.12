@@ -118,6 +118,12 @@
 	non-removable;
 	cap-sdio-irq;
 	status = "okay";
+
+	brcmf: bcrmf@1 {
+		reg = <1>;
+		compatible = "brcm,bcm4329-fmac";
+		brcm,nvram_file_name = "brcm/brcmfmac43362-ap6210.txt";
+	};
 };
 
 &ohci0 {
