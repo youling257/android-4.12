@@ -36,6 +36,8 @@ void brcmf_of_probe(struct device *dev, struct brcmfmac_sdio_pd *sdio)
 	if (of_property_read_u32(np, "brcm,drive-strength", &val) == 0)
 		sdio->drive_strength = val;
 
+	of_property_read_string(np, "brcm,nvram_file_name", &sdio->nvram_name);
+
 	/* make sure there are interrupts defined in the node */
 	if (!of_find_property(np, "interrupts", NULL))
 		return;

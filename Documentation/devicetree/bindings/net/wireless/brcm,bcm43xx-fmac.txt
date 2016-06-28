@@ -11,6 +11,7 @@ Required properties:
 Optional properties:
  - brcm,drive-strength : drive strength used for SDIO pins on device in mA
 	(default = 6).
+ - brcm,nvram_file_name : name of the nvram file to load
  - interrupt-parent : the phandle for the interrupt controller to which the
 	device interrupts are connected.
  - interrupts : specifies attributes for the out-of-band interrupt (host-wake).
@@ -34,6 +35,7 @@ mmc3: mmc@01c12000 {
 	brcmf: bcrmf@1 {
 		reg = <1>;
 		compatible = "brcm,bcm4329-fmac";
+		brcm,nvram_file_name = "brcm/brcmfmac43362-ap6210.txt";
 		interrupt-parent = <&pio>;
 		interrupts = <10 8>; /* PH10 / EINT10 */
 		interrupt-names = "host-wake";

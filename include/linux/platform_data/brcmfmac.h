@@ -65,6 +65,7 @@ enum brcmf_bus_type {
  *			the target drive strength, the exact drive strength
  *			which will be used depends on the capabilities of the
  *			device.
+ * @nvram_name:		name of nvram file to load.
  * @oob_irq_supported:	does the board have support for OOB interrupts. SDIO
  *			in-band interrupts are relatively slow and for having
  *			less overhead on interrupt processing an out of band
@@ -91,6 +92,7 @@ enum brcmf_bus_type {
 struct brcmfmac_sdio_pd {
 	int		txglomsz;
 	unsigned int	drive_strength;
+	const char	*nvram_name;
 	bool		oob_irq_supported;
 	unsigned int	oob_irq_nr;
 	unsigned long	oob_irq_flags;

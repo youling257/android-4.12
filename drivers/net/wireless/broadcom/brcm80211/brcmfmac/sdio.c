@@ -4207,6 +4207,12 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	if (ret)
 		goto fail;
 
+	if (sdiodev->settings->bus.sdio.nvram_name) {
+		strlcpy(sdiodev->nvram_name,
+			sdiodev->settings->bus.sdio.nvram_name,
+			BRCMF_FW_NAME_LEN);
+	}
+
 	ret = brcmf_fw_get_firmwares(sdiodev->dev, BRCMF_FW_REQUEST_NVRAM,
 				     sdiodev->fw_name, sdiodev->nvram_name,
 				     brcmf_sdio_firmware_callback);
