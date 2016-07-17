@@ -86,6 +86,7 @@ struct edt_reg_addr {
 struct edt_ft5x06_ts_data {
 	struct i2c_client *client;
 	struct input_dev *input;
+	struct touchscreen_softbutton_info *buttons;
 	struct touchscreen_properties prop;
 	u16 num_x;
 	u16 num_y;
@@ -240,6 +241,9 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 		y = ((buf[2] << 8) | buf[3]) & 0x0fff;
 		id = (buf[2] >> 4) & 0x0f;
 		down = type != TOUCH_EVENT_UP;
+
+		if (touchscreen_handle_softbuttons(tsdata->buttons, x, y, down))
+			continue;
 
 		input_mt_slot(tsdata->input, id);
 		input_mt_report_slot_state(tsdata->input, MT_TOOL_FINGER, down);
@@ -974,6 +978,10 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 			     0, tsdata->num_y * 64 - 1, 0, 0);
 
 	touchscreen_parse_properties(input, true, &tsdata->prop);
+
+	tsdata->buttons = devm_touchscreen_alloc_softbuttons(input);
+	if (IS_ERR(tsdata->buttons))
+		return PTR_ERR(tsdata->buttons);
 
 	error = input_mt_init_slots(input, tsdata->max_support_points,
 				INPUT_MT_DIRECT);
