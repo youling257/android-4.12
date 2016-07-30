@@ -9,8 +9,11 @@
 #ifndef _TOUCHSCREEN_H
 #define _TOUCHSCREEN_H
 
+#include <linux/types.h>
+
 struct input_dev;
 struct input_mt_pos;
+struct touchscreen_softbutton_info;
 
 struct touchscreen_properties {
 	unsigned int max_x;
@@ -31,5 +34,11 @@ void touchscreen_report_pos(struct input_dev *input,
 			    const struct touchscreen_properties *prop,
 			    unsigned int x, unsigned int y,
 			    bool multitouch);
+
+struct touchscreen_softbutton_info *devm_touchscreen_alloc_softbuttons(
+					struct input_dev *input);
+
+bool touchscreen_handle_softbuttons(struct touchscreen_softbutton_info *info,
+				    unsigned int x, unsigned int y, bool down);
 
 #endif

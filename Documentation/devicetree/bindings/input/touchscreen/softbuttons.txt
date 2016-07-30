@@ -1,0 +1,58 @@
+General Touchscreen Softbutton Properties:
+
+Some touchscreens extend over the display they cover and have a number
+of capacative softbuttons outside of the display the cover.
+
+Some of these softbuttons simply report touches with coordinates outside of
+the normal coordinate space for touches on the display. This binding is for
+describing such buttons in devicetree.
+
+Each softkey is represented as a sub-node of the touchscreen node.
+
+Required subnode-properties:
+ - label			: Descriptive name of the key.
+ - linux,code			: Keycode to emit.
+ - softbutton-min-x		: X start of the area the softbutton area covers
+ - softbutton-max-x		: X end of the area the softbutton area covers
+ - softbutton-min-y		: Y start of the area the softbutton area covers
+ - softbutton-max-y		: Y end of the area the softbutton area covers
+
+Example:
+
+#include <dt-bindings/input/input.h>
+
+&i2c2 {
+	ft5406ee8: touchscreen@38 {
+		compatible = "edt,edt-ft5406";
+		reg = <0x38>;
+		touchscreen-size-x = <1024>;
+		touchscreen-size-y = <768>;
+
+		button@0 {
+			label = "Esc";
+			linux,code = <KEY_ESC>;
+			softbutton-min-x = <1084>;
+			softbutton-max-x = <1098>;
+			softbutton-min-y = <0>;
+			softbutton-max-y = <49>;
+		};
+
+		button@1 {
+			label = "Home";
+			linux,code = <KEY_HOMEPAGE>;
+			softbutton-min-x = <1084>;
+			softbutton-max-x = <1098>;
+			softbutton-min-y = <50>;
+			softbutton-max-y = <99>;
+		};
+
+		button@2 {
+			label = "Menu";
+			linux,code = <KEY_MENU>;
+			softbutton-min-x = <1084>;
+			softbutton-max-x = <1098>;
+			softbutton-min-y = <100>;
+			softbutton-max-y = <149>;
+		};
+	};
+};
