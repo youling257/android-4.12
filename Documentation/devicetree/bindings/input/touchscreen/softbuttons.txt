@@ -17,6 +17,10 @@ Required subnode-properties:
  - softbutton-min-y		: Y start of the area the softbutton area covers
  - softbutton-max-y		: Y end of the area the softbutton area covers
 
+Optional subnode-properties:
+- linux,led-trigger		: String for a LED trigger for providing visual
+				  feedback that the softbutton has been pressed
+
 Example:
 
 #include <dt-bindings/input/input.h>
