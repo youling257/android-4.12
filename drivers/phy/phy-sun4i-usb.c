@@ -138,6 +138,7 @@ struct sun4i_usb_phy_data {
 	int vbus_det_irq;
 	int id_det;
 	int vbus_det;
+	int id_det_default;
 	struct delayed_work detect;
 };
 
@@ -331,7 +332,7 @@ static int sun4i_usb_phy0_get_id_det(struct sun4i_usb_phy_data *data)
 		if (data->id_det_gpio)
 			return gpiod_get_value_cansleep(data->id_det_gpio);
 		else
-			return 1; /* Fallback to peripheral mode */
+			return data->id_det_default;
 	case USB_DR_MODE_HOST:
 		return 0;
 	case USB_DR_MODE_PERIPHERAL:
@@ -635,6 +636,12 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 	data->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(data->base))
 		return PTR_ERR(data->base);
+
+	/* Set id-det default for when there is no id-det gpio */
+	if (of_property_read_bool(np, "allwinner,usb0-usb-a-connector"))
+		data->id_det_default = 0; /* Host (USB-A connector) */
+	else
+		data->id_det_default = 1; /* Device (USB-B connector) */
 
 	data->id_det_gpio = devm_gpiod_get_optional(dev, "usb0_id_det",
 						    GPIOD_IN);

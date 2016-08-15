@@ -35,6 +35,8 @@ Optional properties:
 - usb0_vbus-supply : regulator phandle for controller usb0 vbus
 - usb1_vbus-supply : regulator phandle for controller usb1 vbus
 - usb2_vbus-supply : regulator phandle for controller usb2 vbus
+- allwinner,usb0-usb-a-connector: usb0 is connected to an USB-A connector,
+                     rather then an USB-B connector as one would expect (bool)
 
 Example:
 	usbphy: phy@0x01c13400 {
