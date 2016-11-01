@@ -297,11 +297,11 @@ static const struct key_entry dell_wmi_keymap_type_0011[] __initconst = {
 	{ KE_IGNORE, 0xfff1, { KEY_RESERVED } },
 
 	/* Keyboard backlight level changed */
-	{ KE_IGNORE, 0x01e1, { KEY_RESERVED } },
-	{ KE_IGNORE, 0x02ea, { KEY_RESERVED } },
-	{ KE_IGNORE, 0x02eb, { KEY_RESERVED } },
-	{ KE_IGNORE, 0x02ec, { KEY_RESERVED } },
-	{ KE_IGNORE, 0x02f6, { KEY_RESERVED } },
+	{ KE_IGNORE, 0x01e1, { KEY_KBDILLUMTOGGLE } },
+	{ KE_IGNORE, 0x02ea, { KEY_KBDILLUMTOGGLE } },
+	{ KE_IGNORE, 0x02eb, { KEY_KBDILLUMTOGGLE } },
+	{ KE_IGNORE, 0x02ec, { KEY_KBDILLUMTOGGLE } },
+	{ KE_IGNORE, 0x02f6, { KEY_KBDILLUMTOGGLE } },
 };
 
 static struct input_dev *dell_wmi_input_dev;
@@ -328,6 +328,10 @@ static void dell_wmi_process_key(int type, int code)
 
 	if (type == 0x0000 && code == 0xe025 && !wmi_requires_smbios_request)
 		return;
+
+	if (key->keycode == KEY_KBDILLUMTOGGLE)
+		dell_laptop_call_notifier(
+			DELL_LAPTOP_KBD_BACKLIGHT_BRIGHTNESS_CHANGED, NULL);
 
 	sparse_keymap_report_entry(dell_wmi_input_dev, key, 1, true);
 }

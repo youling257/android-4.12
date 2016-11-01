@@ -1133,6 +1133,7 @@ static u8 kbd_previous_level;
 static u8 kbd_previous_mode_bit;
 
 static bool kbd_led_present;
+static enum led_brightness kbd_led_brightness;
 static DEFINE_MUTEX(kbd_led_mutex);
 
 /*
@@ -1943,6 +1944,7 @@ static enum led_brightness kbd_led_level_get(struct led_classdev *led_cdev)
 static int kbd_led_level_set(struct led_classdev *led_cdev,
 			     enum led_brightness value)
 {
+	enum led_brightness new_brightness = value;
 	struct kbd_state state;
 	struct kbd_state new_state;
 	u16 num;
@@ -1971,6 +1973,8 @@ static int kbd_led_level_set(struct led_classdev *led_cdev,
 		ret = -ENXIO;
 	}
 
+	if (ret == 0)
+		kbd_led_brightness = new_brightness;
 out:
 	mutex_unlock(&kbd_led_mutex);
 	return ret;
@@ -1978,6 +1982,7 @@ out:
 
 static struct led_classdev kbd_led = {
 	.name           = "dell::kbd_backlight",
+	.flags		= LED_BRIGHT_HW_CHANGED,
 	.brightness_set_blocking = kbd_led_level_set,
 	.brightness_get = kbd_led_level_get,
 	.groups         = kbd_led_groups,
@@ -1985,6 +1990,8 @@ static struct led_classdev kbd_led = {
 
 static int __init kbd_led_init(struct device *dev)
 {
+	int ret;
+
 	kbd_init();
 	if (!kbd_led_present)
 		return -ENODEV;
@@ -1996,7 +2003,12 @@ static int __init kbd_led_init(struct device *dev)
 		if (kbd_led.max_brightness)
 			kbd_led.max_brightness--;
 	}
-	return led_classdev_register(dev, &kbd_led);
+	kbd_led_brightness = kbd_led_level_get(&kbd_led);
+	ret = led_classdev_register(dev, &kbd_led);
+	if (ret)
+		kbd_led_present = false;
+
+	return ret;
 }
 
 static void brightness_set_exit(struct led_classdev *led_cdev,
@@ -2012,6 +2024,36 @@ static void kbd_led_exit(void)
 	kbd_led.brightness_set = brightness_set_exit;
 	led_classdev_unregister(&kbd_led);
 }
+
+static int dell_laptop_notifier_call(struct notifier_block *nb,
+				     unsigned long action, void *data)
+{
+	enum led_brightness brightness;
+
+	switch (action) {
+	case DELL_LAPTOP_KBD_BACKLIGHT_BRIGHTNESS_CHANGED:
+		if (!kbd_led_present)
+			break;
+
+		mutex_lock(&kbd_led_mutex);
+
+		brightness = kbd_led_level_get(&kbd_led);
+		if (kbd_led_brightness != brightness) {
+			kbd_led_brightness = brightness;
+			led_classdev_notify_brightness_hw_changed(&kbd_led,
+								  brightness);
+		}
+
+		mutex_unlock(&kbd_led_mutex);
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block dell_laptop_notifier = {
+	.notifier_call = dell_laptop_notifier_call,
+};
 
 static int __init dell_init(void)
 {
@@ -2055,6 +2097,8 @@ static int __init dell_init(void)
 	if (dell_laptop_dir != NULL)
 		debugfs_create_file("rfkill", 0444, dell_laptop_dir, NULL,
 				    &dell_debugfs_fops);
+
+	dell_laptop_register_notifier(&dell_laptop_notifier);
 
 	if (acpi_video_get_backlight_type() != acpi_backlight_vendor)
 		return 0;
@@ -2107,6 +2151,7 @@ fail_platform_driver:
 
 static void __exit dell_exit(void)
 {
+	dell_laptop_unregister_notifier(&dell_laptop_notifier);
 	debugfs_remove_recursive(dell_laptop_dir);
 	if (quirks && quirks->touchpad_led)
 		touchpad_led_exit();
