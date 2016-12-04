@@ -33,6 +33,8 @@
 #include <acpi/acpi_bus.h>
 #include <asm/unaligned.h>
 
+#include "silead_dmi.h"
+
 #define SILEAD_TS_NAME		"silead_ts"
 
 #define SILEAD_REG_RESET	0xE0
@@ -468,6 +470,7 @@ static int silead_ts_probe(struct i2c_client *client,
 	if (error)
 		return error;
 
+	silead_ts_dmi_add_props(client);
 	silead_ts_read_props(client);
 
 	/* We must have the IRQ provided by DT or ACPI subsytem */
