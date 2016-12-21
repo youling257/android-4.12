@@ -63,3 +63,4 @@ obj-$(CONFIG_ARCH_TEGRA) += tegra/
 obj-$(CONFIG_PHY_NS2_PCIE)		+= phy-bcm-ns2-pcie.o
 obj-$(CONFIG_PHY_MESON8B_USB2)		+= phy-meson8b-usb2.o
 obj-$(CONFIG_PHY_NSP_USB3)		+= phy-bcm-nsp-usb3.o
+obj-$(CONFIG_PHY_INTEL_CHT_USB)		+= phy-intel-cht-usb.o
