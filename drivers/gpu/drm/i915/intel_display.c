@@ -47,6 +47,7 @@
 #include <drm/drm_rect.h>
 #include <linux/dma_remapping.h>
 #include <linux/reservation.h>
+#include <asm/iosf_mbi.h>
 
 static bool is_mmio_work(struct intel_flip_work *work)
 {
@@ -6423,6 +6424,8 @@ static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 		cmd = 0;
 
 	mutex_lock(&dev_priv->rps.hw_lock);
+	iosf_mbi_punit_acquire();
+
 	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
 	val &= ~DSPFREQGUAR_MASK;
 	val |= (cmd << DSPFREQGUAR_SHIFT);
@@ -6432,6 +6435,7 @@ static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 		     50)) {
 		DRM_ERROR("timed out waiting for CDclk change\n");
 	}
+	iosf_mbi_punit_release();
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	mutex_lock(&dev_priv->sb_lock);
@@ -6499,6 +6503,7 @@ static void cherryview_set_cdclk(struct drm_device *dev, int cdclk)
 	cmd = DIV_ROUND_CLOSEST(dev_priv->hpll_freq << 1, cdclk) - 1;
 
 	mutex_lock(&dev_priv->rps.hw_lock);
+	iosf_mbi_punit_acquire();
 	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
 	val &= ~DSPFREQGUAR_MASK_CHV;
 	val |= (cmd << DSPFREQGUAR_SHIFT_CHV);
@@ -6508,6 +6513,7 @@ static void cherryview_set_cdclk(struct drm_device *dev, int cdclk)
 		     50)) {
 		DRM_ERROR("timed out waiting for CDclk change\n");
 	}
+	iosf_mbi_punit_release();
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	intel_update_cdclk(dev_priv);

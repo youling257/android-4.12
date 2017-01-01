@@ -32,6 +32,7 @@
 #include "../../../platform/x86/intel_ips.h"
 #include <linux/module.h>
 #include <drm/drm_atomic_helper.h>
+#include <asm/iosf_mbi.h>
 
 /**
  * DOC: RC6
@@ -276,6 +277,7 @@ static void chv_set_memory_dvfs(struct drm_i915_private *dev_priv, bool enable)
 	u32 val;
 
 	mutex_lock(&dev_priv->rps.hw_lock);
+	iosf_mbi_punit_acquire();
 
 	val = vlv_punit_read(dev_priv, PUNIT_REG_DDR_SETUP2);
 	if (enable)
@@ -290,6 +292,7 @@ static void chv_set_memory_dvfs(struct drm_i915_private *dev_priv, bool enable)
 		      FORCE_DDR_FREQ_REQ_ACK) == 0, 3))
 		DRM_ERROR("timed out waiting for Punit DDR DVFS request\n");
 
+	iosf_mbi_punit_release();
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
@@ -298,6 +301,7 @@ static void chv_set_memory_pm5(struct drm_i915_private *dev_priv, bool enable)
 	u32 val;
 
 	mutex_lock(&dev_priv->rps.hw_lock);
+	iosf_mbi_punit_acquire();
 
 	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
 	if (enable)
@@ -306,6 +310,7 @@ static void chv_set_memory_pm5(struct drm_i915_private *dev_priv, bool enable)
 		val &= ~DSP_MAXFIFO_PM5_ENABLE;
 	vlv_punit_write(dev_priv, PUNIT_REG_DSPFREQ, val);
 
+	iosf_mbi_punit_release();
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
@@ -4546,6 +4551,7 @@ void vlv_wm_get_hw_state(struct drm_device *dev)
 
 	if (IS_CHERRYVIEW(dev_priv)) {
 		mutex_lock(&dev_priv->rps.hw_lock);
+		iosf_mbi_punit_acquire();
 
 		val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
 		if (val & DSP_MAXFIFO_PM5_ENABLE)
@@ -4575,6 +4581,7 @@ void vlv_wm_get_hw_state(struct drm_device *dev)
 				wm->level = VLV_WM_LEVEL_DDR_DVFS;
 		}
 
+		iosf_mbi_punit_release();
 		mutex_unlock(&dev_priv->rps.hw_lock);
 	}
 
@@ -4981,7 +4988,9 @@ static void valleyview_set_rps(struct drm_i915_private *dev_priv, u8 val)
 	I915_WRITE(GEN6_PMINTRMSK, gen6_rps_pm_mask(dev_priv, val));
 
 	if (val != dev_priv->rps.cur_freq) {
+		iosf_mbi_punit_acquire();
 		vlv_punit_write(dev_priv, PUNIT_REG_GPU_FREQ_REQ, val);
+		iosf_mbi_punit_release();
 		if (!IS_CHERRYVIEW(dev_priv))
 			gen6_set_rps_thresholds(dev_priv, val);
 	}

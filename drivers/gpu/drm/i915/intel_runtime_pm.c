@@ -28,6 +28,7 @@
 
 #include <linux/pm_runtime.h>
 #include <linux/vgaarb.h>
+#include <asm/iosf_mbi.h>
 
 #include "i915_drv.h"
 #include "intel_drv.h"
@@ -1027,6 +1028,8 @@ static void vlv_set_power_well(struct drm_i915_private *dev_priv,
 	if (COND)
 		goto out;
 
+	iosf_mbi_punit_acquire();
+
 	ctrl = vlv_punit_read(dev_priv, PUNIT_REG_PWRGT_CTRL);
 	ctrl &= ~mask;
 	ctrl |= state;
@@ -1036,6 +1039,8 @@ static void vlv_set_power_well(struct drm_i915_private *dev_priv,
 		DRM_ERROR("timeout setting power well state %08x (%08x)\n",
 			  state,
 			  vlv_punit_read(dev_priv, PUNIT_REG_PWRGT_CTRL));
+
+	iosf_mbi_punit_release();
 
 #undef COND
 
@@ -1643,6 +1648,8 @@ static void chv_set_pipe_power_well(struct drm_i915_private *dev_priv,
 	if (COND)
 		goto out;
 
+	iosf_mbi_punit_acquire();
+
 	ctrl = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
 	ctrl &= ~DP_SSC_MASK(pipe);
 	ctrl |= enable ? DP_SSC_PWR_ON(pipe) : DP_SSC_PWR_GATE(pipe);
@@ -1652,6 +1659,8 @@ static void chv_set_pipe_power_well(struct drm_i915_private *dev_priv,
 		DRM_ERROR("timeout setting power well state %08x (%08x)\n",
 			  state,
 			  vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ));
+
+	iosf_mbi_punit_release();
 
 #undef COND
 
