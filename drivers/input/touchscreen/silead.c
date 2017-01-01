@@ -30,6 +30,7 @@
 #include <linux/pm.h>
 #include <linux/irq.h>
 
+#include <acpi/acpi_bus.h>
 #include <asm/unaligned.h>
 
 #define SILEAD_TS_NAME		"silead_ts"
@@ -71,6 +72,7 @@ enum silead_ts_power {
 
 struct silead_ts_data {
 	struct i2c_client *client;
+	bool acpi_power;
 	struct gpio_desc *gpio_power;
 	struct input_dev *input;
 	char fw_name[64];
@@ -125,7 +127,14 @@ static void silead_ts_set_power(struct i2c_client *client,
 {
 	struct silead_ts_data *data = i2c_get_clientdata(client);
 
-	if (data->gpio_power) {
+	if (data->acpi_power) {
+#ifdef CONFIG_ACPI
+		int ret = acpi_bus_set_power(ACPI_HANDLE(&client->dev),
+					state ? ACPI_STATE_D0 : ACPI_STATE_D3);
+		if (ret)
+			dev_err(&client->dev, "Power error %d\n", ret);
+#endif
+	} else if (data->gpio_power) {
 		gpiod_set_value_cansleep(data->gpio_power, state);
 		msleep(SILEAD_POWER_SLEEP);
 	}
@@ -465,12 +474,21 @@ static int silead_ts_probe(struct i2c_client *client,
 	if (client->irq <= 0)
 		return -ENODEV;
 
-	/* Power GPIO pin */
-	data->gpio_power = devm_gpiod_get_optional(dev, "power", GPIOD_OUT_LOW);
-	if (IS_ERR(data->gpio_power)) {
-		if (PTR_ERR(data->gpio_power) != -EPROBE_DEFER)
-			dev_err(dev, "Shutdown GPIO request failed\n");
-		return PTR_ERR(data->gpio_power);
+	/* Power handling, try ACPI companion method first then GPIO */
+#ifdef CONFIG_ACPI
+	if (ACPI_COMPANION(&client->dev) &&
+	    acpi_bus_set_power(ACPI_HANDLE(&client->dev), ACPI_STATE_D3) == 0)
+		data->acpi_power = true;
+	else
+#endif
+	{
+		data->gpio_power = devm_gpiod_get_optional(dev, "power",
+							   GPIOD_OUT_LOW);
+		if (IS_ERR(data->gpio_power)) {
+			if (PTR_ERR(data->gpio_power) != -EPROBE_DEFER)
+				dev_err(dev, "Power GPIO request failed\n");
+			return PTR_ERR(data->gpio_power);
+		}
 	}
 
 	error = silead_ts_setup(client);
