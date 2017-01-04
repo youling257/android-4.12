@@ -250,7 +250,7 @@ intel_uncore_fw_release_timer(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-void intel_uncore_forcewake_reset(struct drm_i915_private *dev_priv,
+static void __intel_uncore_forcewake_reset(struct drm_i915_private *dev_priv,
 				  bool restore)
 {
 	unsigned long irqflags;
@@ -424,13 +424,17 @@ static void __intel_uncore_early_sanitize(struct drm_i915_private *dev_priv,
 	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_B_LAST))
 		info->has_decoupled_mmio = false;
 
-	intel_uncore_forcewake_reset(dev_priv, restore_forcewake);
+	__intel_uncore_forcewake_reset(dev_priv, restore_forcewake);
 }
 
-void intel_uncore_early_sanitize(struct drm_i915_private *dev_priv,
-				 bool restore_forcewake)
+void intel_uncore_suspend(struct drm_i915_private *dev_priv)
 {
-	__intel_uncore_early_sanitize(dev_priv, restore_forcewake);
+	__intel_uncore_forcewake_reset(dev_priv, false);
+}
+
+void intel_uncore_resume(struct drm_i915_private *dev_priv)
+{
+	__intel_uncore_early_sanitize(dev_priv, true);
 	i915_check_and_clear_faults(dev_priv);
 }
 
@@ -1463,7 +1467,7 @@ void intel_uncore_fini(struct drm_i915_private *dev_priv)
 {
 	/* Paranoia: make sure we have disabled everything before we exit. */
 	intel_uncore_sanitize(dev_priv);
-	intel_uncore_forcewake_reset(dev_priv, false);
+	__intel_uncore_forcewake_reset(dev_priv, false);
 }
 
 #define GEN_RANGE(l, h) GENMASK((h) - 1, (l) - 1)
@@ -1679,7 +1683,7 @@ static int gen6_reset_engines(struct drm_i915_private *dev_priv,
 
 	ret = gen6_hw_domain_reset(dev_priv, hw_mask);
 
-	intel_uncore_forcewake_reset(dev_priv, true);
+	__intel_uncore_forcewake_reset(dev_priv, true);
 
 	return ret;
 }
