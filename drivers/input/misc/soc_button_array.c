@@ -113,6 +113,11 @@ soc_button_device_create(struct platform_device *pdev,
 	gpio_keys_pdata->nbuttons = n_buttons;
 	gpio_keys_pdata->rep = autorepeat;
 
+	if (autorepeat)
+		gpio_keys_pdata->name = "SoC Button Array (autorepeat buttons)";
+	else
+		gpio_keys_pdata->name = "SoC Button Array";
+
 	pd = platform_device_alloc("gpio-keys", PLATFORM_DEVID_AUTO);
 	if (!pd) {
 		error = -ENOMEM;
