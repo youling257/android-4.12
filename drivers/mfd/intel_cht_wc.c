@@ -31,8 +31,25 @@
 #define REG_ADDR_MASK		GENMASK(15, 8)
 #define REG_ADDR_SHIFT		8
 
+#define CHT_WC_IRQLVL1		0x6e02
+#define CHT_WC_CHGRIRQ		0x6e0a
+#define CHT_WC_IRQLVL1_MASK	0x6e0e
+#define CHT_WC_CHGRIRQ_MASK	0x6e17
+
 /* Whiskey Cove PMIC share same ACPI ID between different platforms */
 #define CHT_WC_HRV		3
+
+/* Level 1 IRQs (level 2 IRQs are handled in the child device drivers) */
+enum {
+	CHT_WC_PWRSRC_IRQ = 0,
+	CHT_WC_THRM_IRQ,
+	CHT_WC_BCU_IRQ,
+	CHT_WC_ADC_IRQ,
+	CHT_WC_EXT_CHGR_IRQ,
+	CHT_WC_GPIO_IRQ,
+	/* There is no irq 6 */
+	CHT_WC_CRIT_IRQ = 7,
+};
 
 static struct mfd_cell cht_wc_dev[] = {
 	{
@@ -92,6 +109,25 @@ static const struct regmap_config cht_wc_regmap_cfg = {
 	.reg_read = cht_wc_byte_reg_read,
 };
 
+static const struct regmap_irq cht_wc_regmap_irqs[] = {
+	REGMAP_IRQ_REG(CHT_WC_PWRSRC_IRQ, 0, BIT(CHT_WC_PWRSRC_IRQ)),
+	REGMAP_IRQ_REG(CHT_WC_THRM_IRQ, 0, BIT(CHT_WC_THRM_IRQ)),
+	REGMAP_IRQ_REG(CHT_WC_BCU_IRQ, 0, BIT(CHT_WC_BCU_IRQ)),
+	REGMAP_IRQ_REG(CHT_WC_ADC_IRQ, 0, BIT(CHT_WC_ADC_IRQ)),
+	REGMAP_IRQ_REG(CHT_WC_EXT_CHGR_IRQ, 0, BIT(CHT_WC_EXT_CHGR_IRQ)),
+	REGMAP_IRQ_REG(CHT_WC_GPIO_IRQ, 0, BIT(CHT_WC_GPIO_IRQ)),
+	REGMAP_IRQ_REG(CHT_WC_CRIT_IRQ, 0, BIT(CHT_WC_CRIT_IRQ)),
+};
+
+static const struct regmap_irq_chip cht_wc_regmap_irq_chip = {
+        .name = "cht_wc_irq_chip",
+        .status_base = CHT_WC_IRQLVL1,
+        .mask_base = CHT_WC_IRQLVL1_MASK,
+        .irqs = cht_wc_regmap_irqs,
+        .num_irqs = ARRAY_SIZE(cht_wc_regmap_irqs),
+        .num_regs = 1,
+};
+
 static int cht_wc_probe(struct i2c_client *client,
 			const struct i2c_device_id *i2c_id)
 {
@@ -99,6 +135,7 @@ static int cht_wc_probe(struct i2c_client *client,
 	struct intel_soc_pmic *pmic;
 	acpi_status status;
 	unsigned long long hrv;
+	int ret;
 
 	status = acpi_evaluate_integer(ACPI_HANDLE(dev), "_HRV", NULL, &hrv);
 	if (ACPI_FAILURE(status)) {
@@ -126,9 +163,42 @@ static int cht_wc_probe(struct i2c_client *client,
 	if (IS_ERR(pmic->regmap))
 		return PTR_ERR(pmic->regmap);
 
+	ret = devm_regmap_add_irq_chip(dev, pmic->regmap, pmic->irq,
+				       IRQF_ONESHOT | IRQF_SHARED, 0,
+				       &cht_wc_regmap_irq_chip,
+				       &pmic->irq_chip_data);
+	if (ret)
+		return ret;
+
 	return devm_mfd_add_devices(dev, -1, cht_wc_dev, ARRAY_SIZE(cht_wc_dev),
-				    NULL, 0, NULL);
+			NULL, 0, regmap_irq_get_domain(pmic->irq_chip_data));
 }
+
+static void cht_wc_shutdown(struct i2c_client *client)
+{
+	struct intel_soc_pmic *pmic = i2c_get_clientdata(client);
+
+	disable_irq(pmic->irq);
+}
+
+#ifdef CONFIG_PM_SLEEP
+static int cht_wc_suspend(struct device *dev)
+{
+	struct intel_soc_pmic *pmic = dev_get_drvdata(dev);
+
+	disable_irq(pmic->irq);
+	return 0;
+}
+
+static int cht_wc_resume(struct device *dev)
+{
+	struct intel_soc_pmic *pmic = dev_get_drvdata(dev);
+
+	enable_irq(pmic->irq);
+	return 0;
+}
+#endif
+static SIMPLE_DEV_PM_OPS(cht_wc_pm_ops, cht_wc_suspend, cht_wc_resume);
 
 static const struct i2c_device_id cht_wc_i2c_id[] = {
 	{ }
@@ -144,9 +214,11 @@ MODULE_DEVICE_TABLE(acpi, cht_wc_acpi_ids);
 static struct i2c_driver cht_wc_driver = {
 	.driver	= {
 		.name	= "CHT Whiskey Cove PMIC",
+		.pm     = &cht_wc_pm_ops,
 		.acpi_match_table = ACPI_PTR(cht_wc_acpi_ids),
 	},
 	.probe = cht_wc_probe,
+	.shutdown = cht_wc_shutdown,
 	.id_table = cht_wc_i2c_id,
 };
 
