@@ -3221,6 +3221,7 @@ static void rt5645_jack_detect_work(struct work_struct *work)
 	struct rt5645_priv *rt5645 =
 		container_of(work, struct rt5645_priv, jack_detect_work.work);
 	int val, btn_type, gpio_state = 0, report = 0;
+	bool jack_in = false;
 
 	if (!rt5645->codec)
 		return;
@@ -3231,6 +3232,8 @@ static void rt5645_jack_detect_work(struct work_struct *work)
 			gpio_state = gpiod_get_value(rt5645->gpiod_hp_det);
 			dev_dbg(rt5645->codec->dev, "gpio_state = %d\n",
 				gpio_state);
+			if (rt5645->pdata.jd_invert_logic)
+				gpio_state = !gpio_state;
 			report = rt5645_jack_detect(rt5645->codec, gpio_state);
 		}
 		snd_soc_jack_report(rt5645->hp_jack,
@@ -3251,10 +3254,24 @@ static void rt5645_jack_detect_work(struct work_struct *work)
 	/* jack in */
 	case 0x30: /* 2 port */
 	case 0x0: /* 1 port or 2 port */
+		jack_in = true;
+		break;
+	/* jack out */
+	case 0x70: /* 2 port */
+	case 0x10: /* 2 port */
+	case 0x20: /* 1 port */
+		jack_in = false;
+		break;
+	}
+
+	if (rt5645->pdata.jd_invert_logic)
+		jack_in = !jack_in;
+
+	if (jack_in) {
 		if (rt5645->jack_type == 0) {
 			report = rt5645_jack_detect(rt5645->codec, 1);
 			/* for push button and jack out */
-			break;
+			goto report;
 		}
 		btn_type = 0;
 		if (snd_soc_read(rt5645->codec, RT5645_INT_IRQ_ST) & 0x4) {
@@ -3302,21 +3319,15 @@ static void rt5645_jack_detect_work(struct work_struct *work)
 			mod_timer(&rt5645->btn_check_timer,
 				msecs_to_jiffies(100));
 		}
-
-		break;
-	/* jack out */
-	case 0x70: /* 2 port */
-	case 0x10: /* 2 port */
-	case 0x20: /* 1 port */
+	} else {
+		/* jack out */
 		report = 0;
 		snd_soc_update_bits(rt5645->codec,
 				    RT5645_INT_IRQ_ST, 0x1, 0x0);
 		rt5645_jack_detect(rt5645->codec, 0);
-		break;
-	default:
-		break;
 	}
 
+ report:
 	snd_soc_jack_report(rt5645->hp_jack, report, SND_JACK_HEADPHONE);
 	snd_soc_jack_report(rt5645->mic_jack, report, SND_JACK_MICROPHONE);
 	if (rt5645->en_button_func)
@@ -3605,6 +3616,21 @@ static struct dmi_system_id dmi_platform_intel_broadwell[] = {
 	{ }
 };
 
+static struct rt5645_platform_data gpd_win_platform_data = {
+	.jd_mode = 3,
+	.jd_invert_logic = true,
+};
+
+static const struct dmi_system_id dmi_platform_gpd_win[] = {
+	{
+		.ident = "GPD Win",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "GPD-WINI55"),
+		},
+	},
+	{}
+};
+
 static bool rt5645_check_dp(struct device *dev)
 {
 	if (device_property_present(dev, "realtek,in2-differential") ||
@@ -3655,6 +3681,8 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 		rt5645_parse_dt(rt5645, &i2c->dev);
 	else if (dmi_check_system(dmi_platform_intel_braswell))
 		rt5645->pdata = general_platform_data;
+	else if (dmi_check_system(dmi_platform_gpd_win))
+		rt5645->pdata = gpd_win_platform_data;
 
 	rt5645->gpiod_hp_det = devm_gpiod_get_optional(&i2c->dev, "hp-detect",
 						       GPIOD_IN);
