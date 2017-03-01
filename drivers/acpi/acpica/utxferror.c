@@ -73,7 +73,10 @@ acpi_error(const char *module_name, u32 line_number, const char *format, ...)
 	va_list arg_list;
 
 	ACPI_MSG_REDIRECT_BEGIN;
-	acpi_os_printf(ACPI_MSG_ERROR);
+	if (acpi_gbl_log_errors_exceptions_as_warnings)
+		acpi_os_printf(ACPI_MSG_WARNING);
+	else
+		acpi_os_printf(ACPI_MSG_ERROR);
 
 	va_start(arg_list, format);
 	acpi_os_vprintf(format, arg_list);
@@ -107,16 +110,14 @@ acpi_exception(const char *module_name,
 	va_list arg_list;
 
 	ACPI_MSG_REDIRECT_BEGIN;
-
-	/* For AE_OK, just print the message */
-
-	if (ACPI_SUCCESS(status)) {
+	if (acpi_gbl_log_errors_exceptions_as_warnings)
+		acpi_os_printf(ACPI_MSG_WARNING);
+	else
 		acpi_os_printf(ACPI_MSG_EXCEPTION);
 
-	} else {
-		acpi_os_printf(ACPI_MSG_EXCEPTION "%s, ",
-			       acpi_format_exception(status));
-	}
+	/* For AE_OK, just print the message */
+	if (ACPI_FAILURE(status))
+		acpi_os_printf("%s, ", acpi_format_exception(status));
 
 	va_start(arg_list, format);
 	acpi_os_vprintf(format, arg_list);

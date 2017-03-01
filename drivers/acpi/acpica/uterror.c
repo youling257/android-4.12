@@ -205,7 +205,10 @@ acpi_ut_namespace_error(const char *module_name,
 	char *name = NULL;
 
 	ACPI_MSG_REDIRECT_BEGIN;
-	acpi_os_printf(ACPI_MSG_ERROR);
+	if (acpi_gbl_log_errors_exceptions_as_warnings)
+		acpi_os_printf(ACPI_MSG_WARNING);
+	else
+		acpi_os_printf(ACPI_MSG_ERROR);
 
 	if (lookup_status == AE_BAD_CHARACTER) {
 
@@ -269,7 +272,10 @@ acpi_ut_method_error(const char *module_name,
 	struct acpi_namespace_node *node = prefix_node;
 
 	ACPI_MSG_REDIRECT_BEGIN;
-	acpi_os_printf(ACPI_MSG_ERROR);
+	if (acpi_gbl_log_errors_exceptions_as_warnings)
+		acpi_os_printf(ACPI_MSG_WARNING);
+	else
+		acpi_os_printf(ACPI_MSG_ERROR);
 
 	if (path) {
 		status = acpi_ns_get_node(prefix_node, path,

@@ -256,6 +256,7 @@ acpi_status acpi_tb_load_namespace(void)
 		}
 
 		/* Ignore errors while loading tables, get as many as possible */
+		acpi_gbl_log_errors_exceptions_as_warnings = TRUE;
 
 		(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
 		status = acpi_ns_load_table(i, acpi_gbl_root_node);
@@ -276,11 +277,12 @@ acpi_status acpi_tb_load_namespace(void)
 			tables_loaded++;
 		}
 	}
+	acpi_gbl_log_errors_exceptions_as_warnings = FALSE;
 
 	if (!tables_failed) {
 		ACPI_INFO(("%u ACPI AML tables successfully acquired and loaded", tables_loaded));
 	} else {
-		ACPI_ERROR((AE_INFO,
+		ACPI_WARNING((AE_INFO,
 			    "%u table load failures, %u successful",
 			    tables_failed, tables_loaded));
 
