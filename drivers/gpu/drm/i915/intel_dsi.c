@@ -509,6 +509,17 @@ static void intel_dsi_port_disable(struct intel_encoder *encoder)
 	}
 }
 
+static void intel_dsi_msleep(struct intel_dsi *intel_dsi, int msec)
+{
+	struct drm_i915_private *dev_priv = to_i915(intel_dsi->base.base.dev);
+
+	/* For v3 VBTs in vid-mode the delays are part of the VBT sequences */
+	if (is_vid_mode(intel_dsi) && dev_priv->vbt.dsi.seq_version >= 3)
+		return;
+
+	msleep(msec);
+}
+
 static void intel_dsi_enable(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
@@ -525,7 +536,7 @@ static void intel_dsi_enable(struct intel_encoder *encoder)
 		msleep(20); /* XXX */
 		for_each_dsi_port(port, intel_dsi->ports)
 			dpi_send_cmd(intel_dsi, TURN_ON, false, port);
-		msleep(100);
+		intel_dsi_msleep(intel_dsi, 100);
 
 		drm_panel_enable(intel_dsi->panel);
 
@@ -564,7 +575,7 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 	if (intel_dsi->gpio_panel)
 		gpiod_set_value_cansleep(intel_dsi->gpio_panel, 1);
 
-	msleep(intel_dsi->panel_on_delay);
+	intel_dsi_msleep(intel_dsi, intel_dsi->panel_on_delay);
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		u32 val;
@@ -726,7 +737,7 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder,
 
 	drm_panel_unprepare(intel_dsi->panel);
 
-	msleep(intel_dsi->panel_off_delay);
+	intel_dsi_msleep(intel_dsi, intel_dsi->panel_off_delay);
 
 	/* Panel Disable over CRC PMIC */
 	if (intel_dsi->gpio_panel)
@@ -736,7 +747,7 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder,
 	 * FIXME As we do with eDP, just make a note of the time here
 	 * and perform the wait before the next panel power on.
 	 */
-	msleep(intel_dsi->panel_pwr_cycle_delay);
+	intel_dsi_msleep(intel_dsi, intel_dsi->panel_pwr_cycle_delay);
 }
 
 static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
