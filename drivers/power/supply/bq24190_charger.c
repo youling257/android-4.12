@@ -154,6 +154,7 @@ struct bq24190_dev_info {
 	struct device			*dev;
 	struct power_supply		*charger;
 	struct power_supply		*battery;
+	struct bq24190_platform_data	*pdata;
 	char				model_name[I2C_NAME_SIZE];
 	kernel_ulong_t			model;
 	unsigned int			gpio_int;
@@ -512,6 +513,9 @@ static int bq24190_register_reset(struct bq24190_dev_info *bdi)
 {
 	int ret, limit = 100;
 	u8 v;
+
+	if (bdi->pdata && bdi->pdata->no_register_reset)
+		return 0;
 
 	/* Reset the registers */
 	ret = bq24190_write_mask(bdi, BQ24190_REG_POC,
@@ -1373,6 +1377,7 @@ static int bq24190_probe(struct i2c_client *client,
 	bdi->client = client;
 	bdi->dev = dev;
 	bdi->model = id->driver_data;
+	bdi->pdata = client->dev.platform_data;
 	strncpy(bdi->model_name, id->name, I2C_NAME_SIZE);
 	mutex_init(&bdi->f_reg_lock);
 	bdi->first_time = true;

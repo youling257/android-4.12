@@ -11,6 +11,7 @@
 
 struct bq24190_platform_data {
 	unsigned int	gpio_int;	/* GPIO pin that's connected to INT# */
+	bool no_register_reset;
 };
 
 #endif
