@@ -538,4 +538,13 @@ config AXP20X_POWER
 	  This driver provides support for the power supply features of
 	  AXP20x PMIC.
 
+config CHT_WC_FUEL_GAUGE
+	tristate "Intel Cherry Trail Whiskey Cove PMIC Fuel Gauge"
+	depends on INTEL_SOC_PMIC_CHTWC
+	help
+	  This adds support for the battery fuel gauge found in the Intel
+	  Cherry Trail Whiskey Cove PMIC. This driver allows monitoring
+	  of the charge level of the battery on Intel Cherry Trail systems
+	  with a Whiskey Cove PMIC.
+
 endif # POWER_SUPPLY
