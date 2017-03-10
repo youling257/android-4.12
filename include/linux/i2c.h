@@ -212,6 +212,9 @@ struct i2c_driver {
 	int (*detect)(struct i2c_client *, struct i2c_board_info *);
 	const unsigned short *address_list;
 	struct list_head clients;
+
+	/* IRQ index for retreiving irq from ACPI resources */
+	int irq_index;
 };
 #define to_i2c_driver(d) container_of(d, struct i2c_driver, driver)
 
