@@ -29,6 +29,7 @@
 #include <linux/async.h>
 #include <linux/dmi.h>
 #include <linux/delay.h>
+#include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
 #include <asm/unaligned.h>
@@ -40,6 +41,7 @@
 #endif
 
 #include <linux/acpi.h>
+#include <linux/power/acpi.h>
 #include <linux/power_supply.h>
 
 #include "battery.h"
@@ -66,6 +68,10 @@ MODULE_AUTHOR("Alexey Starikovskiy <astarikovskiy@suse.de>");
 MODULE_DESCRIPTION("ACPI Battery Driver");
 MODULE_LICENSE("GPL");
 
+enum init_state_enum { BAT_NONE, BAT_INITIALIZED, BAT_EXITED };
+
+static enum init_state_enum init_state;
+static DEFINE_MUTEX(init_state_mutex);
 static async_cookie_t async_cookie;
 static int battery_bix_broken_package;
 static int battery_notification_delay_ms;
@@ -1336,17 +1342,42 @@ static int __init acpi_battery_init(void)
 	if (acpi_disabled)
 		return -ENODEV;
 
+	/* Check if acpi_battery_unregister() got called before _init() */
+	mutex_lock(&init_state_mutex);
+	if (init_state != BAT_NONE)
+		goto out_unlock;
+
 	async_cookie = async_schedule(acpi_battery_init_async, NULL);
+	init_state = BAT_INITIALIZED;
+
+out_unlock:
+	mutex_unlock(&init_state_mutex);
+
 	return 0;
 }
 
-static void __exit acpi_battery_exit(void)
+void acpi_battery_unregister(void)
 {
+	/* Check if _init() is done and only do unregister once */
+	mutex_lock(&init_state_mutex);
+	if (init_state != BAT_INITIALIZED)
+		goto out_exit;
+
 	async_synchronize_cookie(async_cookie + 1);
 	acpi_bus_unregister_driver(&acpi_battery_driver);
 #ifdef CONFIG_ACPI_PROCFS_POWER
 	acpi_unlock_battery_dir(acpi_battery_dir);
 #endif
+
+out_exit:
+	init_state = BAT_EXITED;
+	mutex_unlock(&init_state_mutex);
+}
+EXPORT_SYMBOL_GPL(acpi_battery_unregister);
+
+static void __exit acpi_battery_exit(void)
+{
+	acpi_battery_unregister();
 }
 
 module_init(acpi_battery_init);
