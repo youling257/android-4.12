@@ -25,6 +25,7 @@
 #include <linux/workqueue.h>
 #include <linux/mfd/axp20x.h>
 #include <linux/platform_device.h>
+#include <linux/power/acpi.h>
 #include <linux/power_supply.h>
 #include <linux/iio/consumer.h>
 #include <linux/debugfs.h>
@@ -753,6 +754,8 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to register battery: %d\n", ret);
 		return ret;
 	}
+
+	acpi_battery_unregister();
 
 	fuel_gauge_create_debugfs(info);
 	fuel_gauge_init_irq(info);

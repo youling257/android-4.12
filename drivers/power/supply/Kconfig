@@ -242,6 +242,8 @@ config AXP288_CHARGER
 config AXP288_FUEL_GAUGE
 	tristate "X-Powers AXP288 Fuel Gauge"
 	depends on MFD_AXP20X && IIO
+	# if ACPI_BATTERY=m, this can't be 'y'
+	depends on ACPI_BATTERY || !ACPI_BATTERY
 	help
 	  Say yes here to have support for X-Power power management IC (PMIC)
 	  Fuel Gauge. The device provides battery statistics and status
