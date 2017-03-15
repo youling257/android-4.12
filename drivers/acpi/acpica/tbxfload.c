@@ -206,13 +206,9 @@ acpi_status acpi_tb_load_namespace(void)
 	for (i = 0; i < acpi_gbl_root_table_list.current_table_count; ++i) {
 		table = &acpi_gbl_root_table_list.tables[i];
 
-		if (!acpi_gbl_root_table_list.tables[i].address ||
-		    (!ACPI_COMPARE_NAME(table->signature.ascii, ACPI_SIG_SSDT)
-		     && !ACPI_COMPARE_NAME(table->signature.ascii,
-					   ACPI_SIG_PSDT)
-		     && !ACPI_COMPARE_NAME(table->signature.ascii,
-					   ACPI_SIG_OSDT))
-		    || ACPI_FAILURE(acpi_tb_validate_table(table))) {
+		if (!table->address || i == acpi_gbl_dsdt_index ||
+		    !acpi_ut_is_aml_table(table->signature.ascii) ||
+		    ACPI_FAILURE(acpi_tb_validate_table(table))) {
 			continue;
 		}
 

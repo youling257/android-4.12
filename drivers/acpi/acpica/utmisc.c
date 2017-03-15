@@ -75,7 +75,6 @@ u8 acpi_ut_is_pci_root_bridge(char *id)
 	return (FALSE);
 }
 
-#if (defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP || defined ACPI_NAMES_APP)
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_is_aml_table
@@ -90,21 +89,29 @@ u8 acpi_ut_is_pci_root_bridge(char *id)
  *
  ******************************************************************************/
 
-u8 acpi_ut_is_aml_table(struct acpi_table_header *table)
+u8 acpi_ut_is_aml_table(char *signature)
 {
-
-	/* These are the only tables that contain executable AML */
-
-	if (ACPI_COMPARE_NAME(table->signature, ACPI_SIG_DSDT) ||
-	    ACPI_COMPARE_NAME(table->signature, ACPI_SIG_PSDT) ||
-	    ACPI_COMPARE_NAME(table->signature, ACPI_SIG_SSDT) ||
-	    ACPI_COMPARE_NAME(table->signature, ACPI_SIG_OSDT)) {
+	/*
+	 * These are the only tables that contain executable AML
+	 * 1) Originally, we checked the table signature for "SSDT" or "PSDT".
+	 * 2) We added support for OEMx tables, signature "OEM".
+	 * 3) Valid tables were encountered with a null signature, so we just
+	 *    gave up on validating the signature, (05/2008).
+	 * 4) We encountered non-AML tables such as the MADT, which caused
+	 *    interpreter errors and kernel faults. So now, we once again allow
+	 *    only "SSDT", "OEMx", and now, also a null signature. (05/2011).
+	 */
+	if (signature[0] == 0x00 ||
+	    ACPI_COMPARE_NAME(signature, ACPI_SIG_DSDT) ||
+	    ACPI_COMPARE_NAME(signature, ACPI_SIG_PSDT) ||
+	    ACPI_COMPARE_NAME(signature, ACPI_SIG_SSDT) ||
+	    ACPI_COMPARE_NAME(signature, ACPI_SIG_OSDT) ||
+	    strncmp(signature, "OEM", 3) == 0) {
 		return (TRUE);
 	}
 
 	return (FALSE);
 }
-#endif
 
 /*******************************************************************************
  *

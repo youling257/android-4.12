@@ -545,9 +545,7 @@ const struct acpi_exception_info *acpi_ut_validate_exception(acpi_status
 
 u8 acpi_ut_is_pci_root_bridge(char *id);
 
-#if (defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP || defined ACPI_NAMES_APP)
-u8 acpi_ut_is_aml_table(struct acpi_table_header *table);
-#endif
+u8 acpi_ut_is_aml_table(char *signature);
 
 acpi_status
 acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
