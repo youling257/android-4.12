@@ -235,6 +235,8 @@ config CHARGER_AXP20X
 config AXP288_CHARGER
 	tristate "X-Powers AXP288 Charger"
 	depends on MFD_AXP20X && EXTCON_AXP288
+	# if ACPI_AC=m, this can't be 'y'
+	depends on ACPI_AC || !ACPI_AC
 	help
 	  Say yes here to have support X-Power AXP288 power management IC (PMIC)
 	  integrated charger.

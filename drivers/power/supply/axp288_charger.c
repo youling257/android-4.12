@@ -22,6 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/usb/otg.h>
 #include <linux/notifier.h>
+#include <linux/power/acpi.h>
 #include <linux/power_supply.h>
 #include <linux/property.h>
 #include <linux/mfd/axp20x.h>
@@ -876,6 +877,7 @@ static int axp288_charger_probe(struct platform_device *pdev)
 		}
 	}
 
+	acpi_ac_unregister();
 	return 0;
 }
 
