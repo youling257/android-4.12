@@ -736,6 +736,40 @@ bool acpi_dev_found(const char *hid)
 }
 EXPORT_SYMBOL(acpi_dev_found);
 
+static acpi_status acpi_dev_present_cb(acpi_handle ah, u32 level, void *ctx,
+				     void **retval)
+{
+	/*
+	 * acpi_get_devices() does all the work for us, if we get called
+	 * a device with a matching hid has been found and its _STA indicates
+	 * it is present.
+	 */
+	*(bool *)ctx = true;
+	return AE_CTRL_TERMINATE;
+}
+
+/**
+ * acpi_dev_present - Detect that a given ACPI device is present
+ * @hid: Hardware ID of the device.
+ *
+ * Return %true if the device was present at the moment of invocation.
+ * Note that if the device is pluggable, it may since have disappeared.
+ *
+ * Note that unlike acpi_dev_found() this function checks the status
+ * of the device so for devices which are present in the dsdt, but
+ * which are disabled (their _STA callback returns 0) this function
+ * will return false.
+ */
+bool acpi_dev_present(const char *hid)
+{
+	bool present = false;
+
+	acpi_get_devices(hid, acpi_dev_present_cb, &present, NULL);
+
+	return present;
+}
+EXPORT_SYMBOL(acpi_dev_present);
+
 /*
  * acpi_backlight= handling, this is done here rather then in video_detect.c
  * because __setup cannot be used in modules.
