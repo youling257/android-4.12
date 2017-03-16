@@ -26,11 +26,13 @@
 #include <linux/types.h>
 #include <linux/dmi.h>
 #include <linux/delay.h>
+#include <linux/mutex.h>
 #ifdef CONFIG_ACPI_PROCFS_POWER
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #endif
 #include <linux/platform_device.h>
+#include <linux/power/acpi.h>
 #include <linux/power_supply.h>
 #include <linux/acpi.h>
 #include "battery.h"
@@ -422,17 +424,27 @@ static int acpi_ac_remove(struct acpi_device *device)
 	return 0;
 }
 
+enum init_state_enum { AC_NONE, AC_INITIALIZED, AC_EXITED };
+
+static enum init_state_enum init_state;
+static DEFINE_MUTEX(init_state_mutex);
+
 static int __init acpi_ac_init(void)
 {
-	int result;
+	int result, ret = -ENODEV;
 
 	if (acpi_disabled)
 		return -ENODEV;
 
+	/* Check if acpi_ac_unregister() got called before _init() */
+	mutex_lock(&init_state_mutex);
+	if (init_state != AC_NONE)
+		goto out_unlock;
+
 #ifdef CONFIG_ACPI_PROCFS_POWER
 	acpi_ac_dir = acpi_lock_ac_dir();
 	if (!acpi_ac_dir)
-		return -ENODEV;
+		goto out_unlock;
 #endif
 
 
@@ -441,18 +453,39 @@ static int __init acpi_ac_init(void)
 #ifdef CONFIG_ACPI_PROCFS_POWER
 		acpi_unlock_ac_dir(acpi_ac_dir);
 #endif
-		return -ENODEV;
+		goto out_unlock;
 	}
 
-	return 0;
+	init_state = AC_INITIALIZED;
+	ret = 0;
+
+out_unlock:
+	mutex_unlock(&init_state_mutex);
+	return ret;
 }
 
-static void __exit acpi_ac_exit(void)
+void acpi_ac_unregister(void)
 {
+	/* Check if _init() is done and only do unregister once */
+	mutex_lock(&init_state_mutex);
+	if (init_state != AC_INITIALIZED)
+		goto out_exit;
+
 	acpi_bus_unregister_driver(&acpi_ac_driver);
 #ifdef CONFIG_ACPI_PROCFS_POWER
 	acpi_unlock_ac_dir(acpi_ac_dir);
 #endif
+
+out_exit:
+	init_state = AC_EXITED;
+	mutex_unlock(&init_state_mutex);
 }
+EXPORT_SYMBOL_GPL(acpi_ac_unregister);
+
+static void __exit acpi_ac_exit(void)
+{
+	acpi_ac_unregister();
+}
+
 module_init(acpi_ac_init);
 module_exit(acpi_ac_exit);

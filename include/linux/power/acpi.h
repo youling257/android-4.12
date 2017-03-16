@@ -15,4 +15,10 @@ void acpi_battery_unregister(void);
 static inline void acpi_battery_unregister(void) {}
 #endif
 
+#if IS_ENABLED(CONFIG_ACPI_AC)
+void acpi_ac_unregister(void);
+#else
+static inline void acpi_ac_unregister(void) {}
+#endif
+
 #endif
