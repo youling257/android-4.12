@@ -44,6 +44,7 @@ struct extcon_dev {
 	/* Internal data. Please do not set. */
 	struct device dev;
 	struct raw_notifier_head *nh;
+	struct raw_notifier_head nh_all;
 	struct list_head entry;
 	int max_supported;
 	spinlock_t lock;	/* could be called by irq handler */

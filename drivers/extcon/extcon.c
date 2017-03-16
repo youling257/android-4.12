@@ -449,6 +449,7 @@ int extcon_sync(struct extcon_dev *edev, unsigned int id)
 
 	state = !!(edev->state & BIT(index));
 	raw_notifier_call_chain(&edev->nh[index], state, edev);
+	raw_notifier_call_chain(&edev->nh_all, 0, edev);
 
 	/* This could be in interrupt handler */
 	prop_buf = (char *)get_zeroed_page(GFP_ATOMIC);
@@ -900,6 +901,8 @@ EXPORT_SYMBOL_GPL(extcon_get_extcon_dev);
  *				any attach status changes from the extcon.
  * @edev:	the extcon device that has the external connecotr.
  * @id:		the unique id of each external connector in extcon enumeration.
+ *		or -1 to get notififications for all cables on edev, in this
+ *		case no state info will get passed to the notifier_call.
  * @nb:		a notifier block to be registered.
  *
  * Note that the second parameter given to the callback of nb (val) is
@@ -915,12 +918,18 @@ int extcon_register_notifier(struct extcon_dev *edev, unsigned int id,
 	if (!edev || !nb)
 		return -EINVAL;
 
-	idx = find_cable_index_by_id(edev, id);
-	if (idx < 0)
-		return idx;
+	if ((int)id != -1) {
+		idx = find_cable_index_by_id(edev, id);
+		if (idx < 0)
+			return idx;
+	}
 
 	spin_lock_irqsave(&edev->lock, flags);
-	ret = raw_notifier_chain_register(&edev->nh[idx], nb);
+	if ((int)id != -1)
+		ret = raw_notifier_chain_register(&edev->nh[idx], nb);
+	else
+		ret = raw_notifier_chain_register(&edev->nh_all, nb);
+
 	spin_unlock_irqrestore(&edev->lock, flags);
 
 	return ret;
@@ -937,17 +946,23 @@ int extcon_unregister_notifier(struct extcon_dev *edev, unsigned int id,
 				struct notifier_block *nb)
 {
 	unsigned long flags;
-	int ret, idx;
+	int ret, idx = 0;
 
 	if (!edev || !nb)
 		return -EINVAL;
 
-	idx = find_cable_index_by_id(edev, id);
-	if (idx < 0)
-		return idx;
+	if ((int)id != -1) {
+		idx = find_cable_index_by_id(edev, id);
+		if (idx < 0)
+			return idx;
+	}
 
 	spin_lock_irqsave(&edev->lock, flags);
-	ret = raw_notifier_chain_unregister(&edev->nh[idx], nb);
+	if ((int)id != -1)
+		ret = raw_notifier_chain_unregister(&edev->nh[idx], nb);
+	else
+		ret = raw_notifier_chain_unregister(&edev->nh_all, nb);
+
 	spin_unlock_irqrestore(&edev->lock, flags);
 
 	return ret;
@@ -1211,6 +1226,8 @@ int extcon_dev_register(struct extcon_dev *edev)
 
 	for (index = 0; index < edev->max_supported; index++)
 		RAW_INIT_NOTIFIER_HEAD(&edev->nh[index]);
+
+	RAW_INIT_NOTIFIER_HEAD(&edev->nh_all);
 
 	dev_set_drvdata(&edev->dev, edev);
 	edev->state = 0;
