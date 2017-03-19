@@ -20,6 +20,7 @@
 #include <linux/mfd/intel_soc_pmic.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/power/acpi.h>
 #include <linux/power_supply.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
@@ -250,6 +251,14 @@ static int cht_wc_fg_probe(struct i2c_client *client,
 		i2c_unregister_device(fg->fg_client);
 		return PTR_ERR(fg->battery);
 	}
+
+	/*
+	 * Battery and AC are both handled by native drivers on systems with
+	 * a Whiskey Cove PMIC, remove duplicate (and often broken) ACPI
+	 * power_supply devices.
+	 */
+	acpi_battery_unregister();
+	acpi_ac_unregister();
 
 	i2c_set_clientdata(client, fg);
 

@@ -541,6 +541,9 @@ config AXP20X_POWER
 config CHT_WC_FUEL_GAUGE
 	tristate "Intel Cherry Trail Whiskey Cove PMIC Fuel Gauge"
 	depends on INTEL_SOC_PMIC_CHTWC
+	# if these are 'm', this can't be 'y'
+	depends on ACPI_AC || !ACPI_AC
+	depends on ACPI_BATTERY || !ACPI_BATTERY
 	help
 	  This adds support for the battery fuel gauge found in the Intel
 	  Cherry Trail Whiskey Cove PMIC. This driver allows monitoring
