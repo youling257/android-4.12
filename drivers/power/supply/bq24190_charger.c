@@ -1408,12 +1408,12 @@ static int bq24190_probe(struct i2c_client *client,
 	pm_runtime_set_autosuspend_delay(dev, 600);
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0)
-		goto out1;
+		goto pm_runtime_disable;
 
 	ret = bq24190_hw_init(bdi);
 	if (ret < 0) {
 		dev_err(dev, "Hardware init failed\n");
-		goto out2;
+		goto pm_runtime_disable;
 	}
 
 	charger_cfg.drv_data = bdi;
@@ -1424,7 +1424,7 @@ static int bq24190_probe(struct i2c_client *client,
 	if (IS_ERR(bdi->charger)) {
 		dev_err(dev, "Can't register charger\n");
 		ret = PTR_ERR(bdi->charger);
-		goto out2;
+		goto pm_runtime_disable;
 	}
 
 	battery_cfg.drv_data = bdi;
@@ -1433,13 +1433,13 @@ static int bq24190_probe(struct i2c_client *client,
 	if (IS_ERR(bdi->battery)) {
 		dev_err(dev, "Can't register battery\n");
 		ret = PTR_ERR(bdi->battery);
-		goto out3;
+		goto unregister_charger;
 	}
 
 	ret = bq24190_sysfs_create_group(bdi);
 	if (ret) {
 		dev_err(dev, "Can't create sysfs entries\n");
-		goto out4;
+		goto unregister_battery;
 	}
 
 	bdi->initialized = true;
@@ -1450,7 +1450,7 @@ static int bq24190_probe(struct i2c_client *client,
 			"bq24190-charger", bdi);
 	if (ret < 0) {
 		dev_err(dev, "Can't set up irq handler\n");
-		goto out5;
+		goto remove_sysfs_group;
 	}
 
 	if (bdi->extcon) {
@@ -1459,7 +1459,7 @@ static int bq24190_probe(struct i2c_client *client,
 		ret = devm_extcon_register_notifier(dev, bdi->extcon, -1,
 						    &bdi->extcon_nb);
 		if (ret)
-			goto out5;
+			goto remove_sysfs_group;
 
 		/* Sync initial cable state */
 		queue_delayed_work(system_wq, &bdi->extcon_work, 0);
@@ -1472,19 +1472,17 @@ static int bq24190_probe(struct i2c_client *client,
 
 	return 0;
 
-out5:
+remove_sysfs_group:
 	bq24190_sysfs_remove_group(bdi);
 
-out4:
+unregister_battery:
 	power_supply_unregister(bdi->battery);
 
-out3:
+unregister_charger:
 	power_supply_unregister(bdi->charger);
 
-out2:
+pm_runtime_disable:
 	pm_runtime_put_sync(dev);
-
-out1:
 	pm_runtime_dont_use_autosuspend(dev);
 	pm_runtime_disable(dev);
 	return ret;
