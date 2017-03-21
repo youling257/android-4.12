@@ -526,40 +526,6 @@ static int bq24190_set_mode_host(struct bq24190_dev_info *bdi)
 	return bq24190_write(bdi, BQ24190_REG_CTTC, v);
 }
 
-static int bq24190_register_reset(struct bq24190_dev_info *bdi)
-{
-	int ret, limit = 100;
-	u8 v;
-
-	/* Reset the registers */
-	ret = bq24190_write_mask(bdi, BQ24190_REG_POC,
-			BQ24190_REG_POC_RESET_MASK,
-			BQ24190_REG_POC_RESET_SHIFT,
-			0x1);
-	if (ret < 0)
-		return ret;
-
-	/* Reset bit will be cleared by hardware so poll until it is */
-	do {
-		ret = bq24190_read_mask(bdi, BQ24190_REG_POC,
-				BQ24190_REG_POC_RESET_MASK,
-				BQ24190_REG_POC_RESET_SHIFT,
-				&v);
-		if (ret < 0)
-			return ret;
-
-		if (!v)
-			break;
-
-		udelay(10);
-	} while (--limit);
-
-	if (!limit)
-		return -EIO;
-
-	return 0;
-}
-
 /* Charger power supply property routines */
 
 static int bq24190_charger_get_charge_type(struct bq24190_dev_info *bdi,
@@ -1380,10 +1346,6 @@ static int bq24190_hw_init(struct bq24190_dev_info *bdi)
 		return -ENODEV;
 	}
 
-	ret = bq24190_register_reset(bdi);
-	if (ret < 0)
-		return ret;
-
 	ret = bq24190_set_mode_host(bdi);
 	if (ret < 0)
 		return ret;
@@ -1534,7 +1496,6 @@ static int bq24190_remove(struct i2c_client *client)
 		pm_runtime_put_noidle(bdi->dev);
 	}
 
-	bq24190_register_reset(bdi);
 	bq24190_sysfs_remove_group(bdi);
 	power_supply_unregister(bdi->battery);
 	power_supply_unregister(bdi->charger);
@@ -1577,23 +1538,6 @@ static __maybe_unused int bq24190_runtime_resume(struct device *dev)
 
 static __maybe_unused int bq24190_pm_suspend(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct bq24190_dev_info *bdi = i2c_get_clientdata(client);
-	int error;
-
-	error = pm_runtime_get_sync(bdi->dev);
-	if (error < 0) {
-		dev_warn(bdi->dev, "pm_runtime_get failed: %i\n", error);
-		pm_runtime_put_noidle(bdi->dev);
-	}
-
-	bq24190_register_reset(bdi);
-
-	if (error >= 0) {
-		pm_runtime_mark_last_busy(bdi->dev);
-		pm_runtime_put_autosuspend(bdi->dev);
-	}
-
 	return 0;
 }
 
@@ -1612,8 +1556,6 @@ static __maybe_unused int bq24190_pm_resume(struct device *dev)
 		pm_runtime_put_noidle(bdi->dev);
 	}
 
-	bq24190_register_reset(bdi);
-	bq24190_set_mode_host(bdi);
 	bq24190_read(bdi, BQ24190_REG_SS, &bdi->ss_reg);
 
 	if (error >= 0) {
