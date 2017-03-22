@@ -443,12 +443,15 @@ config INTEL_SOC_PMIC
 	  on these systems.
 
 config INTEL_SOC_PMIC_CHTWC
-	tristate "Support for Intel Cherry Trail Whiskey Cove PMIC"
+	# This is a bool as it provides an ACPI Opregion which must be
+	# available as soon as possible
+	bool "Support for Intel Cherry Trail Whiskey Cove PMIC"
 	depends on ACPI
 	depends on I2C
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
+	select I2C_DESIGNWARE_PLATFORM
 	help
 	  Select this option to enable support for the Intel Cherry Trail
 	  Whiskey Cove PMIC found on some Intel Cherry Trail systems.
