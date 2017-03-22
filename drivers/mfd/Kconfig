@@ -148,6 +148,8 @@ config MFD_AXP20X_I2C
 	tristate "X-Powers AXP series PMICs with I2C"
 	select MFD_AXP20X
 	select REGMAP_I2C
+	select I2C_DESIGNWARE_PLATFORM if X86
+	select I2C_DESIGNWARE_BAYTRAIL if X86
 	depends on I2C
 	help
 	  If you say Y here you get support for the X-Powers AXP series power
