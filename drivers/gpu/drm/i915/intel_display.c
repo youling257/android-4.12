@@ -12146,6 +12146,8 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	struct drm_framebuffer *old_fb = crtc->primary->fb;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_plane_state *intel_state =
+		to_intel_plane_state(crtc->primary->state);
 	struct drm_plane *primary = crtc->primary;
 	enum pipe pipe = intel_crtc->pipe;
 	struct intel_flip_work *work;
@@ -12262,8 +12264,8 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		goto cleanup_pending;
 	}
 
-	work->old_vma = to_intel_plane_state(primary->state)->vma;
-	to_intel_plane_state(primary->state)->vma = vma;
+	work->old_vma = intel_state->vma;
+	intel_state->vma = vma;
 
 	work->gtt_offset = i915_ggtt_offset(vma) + intel_crtc->dspaddr_offset;
 	work->rotation = crtc->primary->state->rotation;
@@ -12276,8 +12278,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	 * be on the safe side and do this immediately before scheduling the
 	 * flip.
 	 */
-	intel_fbc_pre_update(intel_crtc, intel_crtc->config,
-			     to_intel_plane_state(primary->state));
+	intel_fbc_pre_update(intel_crtc, intel_crtc->config, intel_state);
 
 	if (mmio_flip) {
 		INIT_WORK(&work->mmio_work, intel_mmio_flip_work_func);
@@ -12320,7 +12321,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 cleanup_request:
 	i915_add_request_no_flush(request);
 cleanup_unpin:
-	to_intel_plane_state(primary->state)->vma = work->old_vma;
+	intel_state->vma = work->old_vma;
 	intel_unpin_fb_vma(vma);
 cleanup_pending:
 	atomic_dec(&intel_crtc->unpin_work_count);
