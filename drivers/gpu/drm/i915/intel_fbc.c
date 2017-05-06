@@ -746,7 +746,7 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 		cache->crtc.hsw_bdw_pixel_rate =
 			ilk_pipe_pixel_rate(crtc_state);
 
-	cache->plane.rotation = plane_state->base.rotation;
+	cache->plane.rotation = intel_plane_get_rotation(plane_state);
 	cache->plane.src_w = drm_rect_width(&plane_state->base.src) >> 16;
 	cache->plane.src_h = drm_rect_height(&plane_state->base.src) >> 16;
 	cache->plane.visible = plane_state->base.visible;

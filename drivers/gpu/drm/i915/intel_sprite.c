@@ -208,7 +208,7 @@ skl_update_plane(struct drm_plane *drm_plane,
 	u32 plane_ctl;
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	u32 surf_addr = plane_state->main.offset;
-	unsigned int rotation = plane_state->base.rotation;
+	unsigned int rotation = intel_plane_get_rotation(plane_state);
 	u32 stride = skl_plane_stride(fb, 0, rotation);
 	int crtc_x = plane_state->base.dst.x1;
 	int crtc_y = plane_state->base.dst.y1;
@@ -341,7 +341,7 @@ vlv_update_plane(struct drm_plane *dplane,
 	enum plane_id plane_id = intel_plane->id;
 	u32 sprctl;
 	u32 sprsurf_offset, linear_offset;
-	unsigned int rotation = plane_state->base.rotation;
+	unsigned int rotation = intel_plane_get_rotation(plane_state);
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	int crtc_x = plane_state->base.dst.x1;
 	int crtc_y = plane_state->base.dst.y1;
@@ -486,7 +486,7 @@ ivb_update_plane(struct drm_plane *plane,
 	enum pipe pipe = intel_plane->pipe;
 	u32 sprctl, sprscale = 0;
 	u32 sprsurf_offset, linear_offset;
-	unsigned int rotation = plane_state->base.rotation;
+	unsigned int rotation = intel_plane_get_rotation(plane_state);
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	int crtc_x = plane_state->base.dst.x1;
 	int crtc_y = plane_state->base.dst.y1;
@@ -624,7 +624,7 @@ ilk_update_plane(struct drm_plane *plane,
 	int pipe = intel_plane->pipe;
 	u32 dvscntr, dvsscale;
 	u32 dvssurf_offset, linear_offset;
-	unsigned int rotation = plane_state->base.rotation;
+	unsigned int rotation = intel_plane_get_rotation(plane_state);
 	const struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
 	int crtc_x = plane_state->base.dst.x1;
 	int crtc_y = plane_state->base.dst.y1;
@@ -748,6 +748,7 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_framebuffer *fb = state->base.fb;
+	unsigned int rotation = intel_plane_get_rotation(state);
 	int crtc_x, crtc_y;
 	unsigned int crtc_w, crtc_h;
 	uint32_t src_x, src_y, src_w, src_h;
@@ -802,8 +803,7 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	 * coordinates and sizes. We probably need some way to decide whether
 	 * more strict checking should be done instead.
 	 */
-	drm_rect_rotate(src, fb->width << 16, fb->height << 16,
-			state->base.rotation);
+	drm_rect_rotate(src, fb->width << 16, fb->height << 16, rotation);
 
 	hscale = drm_rect_calc_hscale_relaxed(src, dst, min_scale, max_scale);
 	BUG_ON(hscale < 0);
@@ -844,7 +844,7 @@ intel_check_sprite_plane(struct drm_plane *plane,
 				     drm_rect_height(dst) * vscale - drm_rect_height(src));
 
 		drm_rect_rotate_inv(src, fb->width << 16, fb->height << 16,
-				    state->base.rotation);
+				    rotation);
 
 		/* sanity check to make sure the src viewport wasn't enlarged */
 		WARN_ON(src->x1 < (int) state->base.src_x ||
